@@ -8,8 +8,9 @@ import (
 	"strings"
 )
 
-func PrintError(format string, args ...any) {
+func PrintExit(format string, args ...any) {
 	fmt.Fprintln(os.Stdout, `protogen [E]`, fmt.Sprintf(format, args...))
+	os.Exit(1)
 }
 
 func PrintInfo(format string, args ...any) {

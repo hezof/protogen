@@ -24,12 +24,12 @@ type CustomOptions struct {
 	Grpc      bool
 	GrpcV2    bool
 	Http      bool
-	Args      []string
 
 	GO        string
 	GOPROXY   string
 	GOPRIVATE string
-	MAVEN     string
+	CENTRAL   string
+	PROFILE   string
 }
 
 // SystemOptions 系统选项
@@ -48,41 +48,30 @@ type SystemOptions struct {
 	GoSumFile string
 }
 
-func getCustomOptions(args []string) CustomOptions {
-	var ops CustomOptions
-	flagset.BoolVar(&ops.Help, `h`, false, `打印帮助`)
-	flagset.BoolVar(&ops.Help, `help`, false, `打印帮助`)
-	flagset.BoolVar(&ops.Version, `version`, false, `打印版本`)
-	flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
-	flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
-	flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径(逗号分隔)`)
-	flagset.StringVar(&ops.GoOut, `go_out`, ``, `GO输出路径`)
-	flagset.BoolVar(&ops.All, `all`, false, `执行所有插件`)
-	flagset.BoolVar(&ops.Docs, `docs`, false, `生成文档片段(openapi)`)
-	flagset.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)
-	flagset.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
-	flagset.BoolVar(&ops.Grpc, `grpc`, false, `生成GRPC代码`)
-	flagset.BoolVar(&ops.GrpcV2, `grpc`, false, `生成GRPC代码(require_unimplemented_servers=true)`)
-	flagset.BoolVar(&ops.Http, `http`, false, `生成HTTP代码(restful,websocket,server-send-events)`)
+func initCustomOptions(ops *Context, flag *flag.FlagSet) {
+	flag.BoolVar(&ops.Help, `h`, false, `打印帮助`)
+	flag.BoolVar(&ops.Help, `help`, false, `打印帮助`)
+	flag.BoolVar(&ops.Version, `version`, false, `打印版本`)
+	flag.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
+	flag.BoolVar(&ops.Update, `update`, false, `更新插件`)
+	flag.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径[逗号分隔]`)
+	flag.StringVar(&ops.GoOut, `go_out`, ``, `GO输出路径`)
+	flag.BoolVar(&ops.All, `all`, false, `执行所有插件`)
+	flag.BoolVar(&ops.Docs, `docs`, false, `生成文档片段[openapi]`)
+	flag.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)
+	flag.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
+	flag.BoolVar(&ops.Grpc, `grpc`, false, `生成GRPC代码`)
+	flag.BoolVar(&ops.GrpcV2, `grpc_v2`, false, `生成GRPC代码[require_unimplemented_servers=true]`)
+	flag.BoolVar(&ops.Http, `http`, false, `生成HTTP代码[restful,websocket,sse]`)
 
-	flagset.StringVar(&ops.GO, `go`, Env(`GO`, `go`), `GO命令路径`)
-	flagset.StringVar(&ops.GOPROXY, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `$GOPROXY代理仓库`)
-	flagset.StringVar(&ops.GOPRIVATE, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `$GOPRIVATE私有仓库`)
-	flagset.StringVar(&ops.MAVEN, `maven`, Env(`MAVEN`, `https://maven.aliyun.com/repository/central`), `$MAVEN代理仓库`)
-
-	err := flagset.Parse(args)
-	if err != nil {
-		PrintError("parse argument error: %v", err)
-		os.Exit(1)
-	}
-
-	ops.Args = flagset.Args()
-
-	return ops
+	flag.StringVar(&ops.GO, `go`, Env(`GO`, `go`), `GO命令路径`)
+	flag.StringVar(&ops.GOPROXY, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
+	flag.StringVar(&ops.GOPRIVATE, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `GOPRIVATE私有模块`)
+	flag.StringVar(&ops.CENTRAL, `central`, Env(`MAVEN_CENTRAL`, `https://maven.aliyun.com/repository/central`), `MAVEN中央仓库`)
+	flag.StringVar(&ops.PROFILE, `profile`, Env(`PROXY_PROFILE`, Profile), `PROXY配置模块`)
 }
 
-func getSystemOptions() SystemOptions {
-	var ops SystemOptions
+func initSystemOptions(ops *Context) {
 	ops.HOME = home()
 	ops.TEMP = filepath.Join(ops.HOME, `tmp`)
 	ops.GO111MODULE = `on`
@@ -95,7 +84,6 @@ func getSystemOptions() SystemOptions {
 
 	ops.GoModFile = filepath.Join(ops.HOME, `go.mod`)
 	ops.GoSumFile = filepath.Join(ops.HOME, `go.sum`)
-	return ops
 }
 
 func home() string {
@@ -119,5 +107,4 @@ func goexe() string {
 	}
 }
 
-var program = os.Args[0]                                    // 批复程序名称,避免有人窜改os.Args
-var flagset = flag.NewFlagSet("protogen", flag.ExitOnError) // 命令行解析工具
+var program = os.Args[0] // 批复程序名称,避免有人窜改os.args

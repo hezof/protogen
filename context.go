@@ -1,7 +1,11 @@
 package protogen
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"flag"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -9,46 +13,38 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
-	"time"
 )
 
 func NewContext(args []string) *Context {
-	ctx, cnf := context.WithCancel(context.Background())
-	return &Context{
-		SystemOptions: getSystemOptions(),
-		CustomOptions: getCustomOptions(args),
-		ctx:           ctx,
-		cnf:           cnf,
+
+	set := flag.NewFlagSet(args[0], flag.ExitOnError)
+
+	ctx := new(Context)
+	initSystemOptions(ctx)
+	initCustomOptions(ctx, set)
+	if err := set.Parse(args[1:]); err != nil {
+		PrintExit("parse argument error: %v", err)
 	}
+	ctx.flagset = set
+	ctx.Context, ctx.CancelFunc = context.WithCancel(context.Background())
+
+	return ctx
 }
 
 type Context struct {
 	SystemOptions
 	CustomOptions
-	ctx context.Context
-	cnf context.CancelFunc
-}
-
-func (ctx *Context) Deadline() (deadline time.Time, ok bool) {
-	return ctx.ctx.Deadline()
-}
-
-func (ctx *Context) Done() <-chan struct{} {
-	return ctx.ctx.Done()
-}
-
-func (ctx *Context) Err() error {
-	return ctx.ctx.Err()
-}
-
-func (ctx *Context) Value(key any) any {
-	return ctx.ctx.Value(key)
+	context.Context
+	context.CancelFunc
+	flagset *flag.FlagSet
+	plugins []*Plugin
 }
 
 func (ctx *Context) Close() {
-	if ctx.cnf != nil {
-		ctx.cnf()
+	if ctx.CancelFunc != nil {
+		ctx.CancelFunc()
 	}
 	// 在Mac机型出现无权删除的情况!
 	filepath.Walk(ctx.TEMP, func(path string, info fs.FileInfo, err error) error {
@@ -107,8 +103,7 @@ func (ctx *Context) GoGet(module string, which Mod) {
 	)
 	cmd.Dir = ctx.HOME
 	if err := cmd.Run(); err != nil {
-		PrintError("go get %v error: %v", module, err)
-		os.Exit(1)
+		PrintExit("go get %v error: %v", module, err)
 	}
 
 	name := filepath.Base(module)
@@ -120,8 +115,7 @@ func (ctx *Context) GoGet(module string, which Mod) {
 	case Bin:
 		newBin := filepath.Join(ctx.TEMP, name+ctx.GOEXE)
 		if !Exists(newBin) {
-			PrintError("go get %v failed", module)
-			os.Exit(1)
+			PrintExit("go get %v failed", module)
 		}
 		oldBin := filepath.Join(ctx.HOME, name+ctx.GOEXE)
 		if Exists(oldBin) {
@@ -131,8 +125,7 @@ func (ctx *Context) GoGet(module string, which Mod) {
 	case Dir:
 		newCnf := RealPath(ctx.TEMP, module)
 		if newCnf == "" {
-			PrintError("go get %v failed", module)
-			os.Exit(1)
+			PrintExit("go get %v failed", module)
 		}
 		oldCnf := filepath.Join(ctx.HOME, name)
 		if Exists(oldCnf) {
@@ -144,12 +137,11 @@ func (ctx *Context) GoGet(module string, which Mod) {
 		}
 		os.Rename(newCnf, oldCnf)
 	case Cnf:
-		newCnf := RealPath(ctx.TEMP, module, RemoteConfig)
+		newCnf := RealPath(ctx.TEMP, module, RemoteProfile)
 		if newCnf == "" {
-			PrintError("go get %v error: can't found config", module)
-			os.Exit(1)
+			PrintExit("go get %v error: missing %v", module, RemoteProfile)
 		}
-		oldCnf := filepath.Join(ctx.HOME, "config")
+		oldCnf := filepath.Join(ctx.HOME, LocalProfile)
 		if Exists(oldCnf) {
 			os.Chmod(oldCnf, fs.ModePerm)
 			os.RemoveAll(oldCnf)
@@ -158,13 +150,18 @@ func (ctx *Context) GoGet(module string, which Mod) {
 	}
 }
 
-func (ctx *Context) MvnGet(module string) {
+func (ctx *Context) MavenProtoc(module string) {
 
 	name := filepath.Base(module)
-	version := `3.22.1`
+	version := `3.25.5`
 	if at := strings.IndexByte(name, '@'); at > 0 {
 		name = name[:at]
-		version = name[at+2:] // 去掉@v
+		version = name[at+1:] // 去掉@v
+		if version == `` {
+			version = `3.25.5`
+		} else if version[0] == 'v' {
+			version = version[1:]
+		}
 	}
 
 	sysOS := runtime.GOOS
@@ -199,38 +196,90 @@ func (ctx *Context) MvnGet(module string) {
 		sysARCH = `s390x`
 	}
 
-	furl := ctx.MAVEN + `/com/google/protobuf/protoc/` + version + `/protoc-` + version + `-` + sysOS + `-` + sysARCH + `.exe`
+	furl := ctx.CENTRAL + `/com/google/protobuf/protoc/` + version + `/protoc-` + version + `-` + sysOS + `-` + sysARCH + `.exe`
 	rsp, err := http.Get(furl)
 	if err != nil {
-		PrintError("mvn get %v error: %v", name, err)
-		os.Exit(1)
+		PrintExit(`mvn get %v error: %v`, name, err)
 	}
 	defer rsp.Body.Close()
 
 	data, err := io.ReadAll(rsp.Body)
 	if err != nil {
-		PrintError("mvn get %v error: %v", name, err)
-		os.Exit(1)
+		PrintExit(`mvn get %v error: %v`, name, err)
 	}
 
 	err = os.WriteFile(filepath.Join(ctx.HOME, name+ctx.GOEXE), data, 0755)
 	if err != nil {
-		PrintError("mvn get %v error: %v", name, err)
-		os.Exit(1)
+		PrintExit(`mvn get %v error: %v`, name, err)
 	}
 }
 
 func (ctx *Context) PrintUsage() {
-
+	out := new(strings.Builder)
+	fmt.Fprintln(out, `Usage: protogen [options] <folder|files> [...]`)
+	ctx.flagset.SetOutput(out)
+	ctx.flagset.PrintDefaults()
+	fmt.Println(out.String())
 }
 
 func (ctx *Context) PrintVersion() {
-
+	out := new(strings.Builder)
+	fmt.Fprintln(out, `version:`, Version)
+	fmt.Fprintln(out, `plugins:`)
+	width := 0
+	for _, p := range ctx.GetPlugins() {
+		if n := len(p.Name); n > width {
+			width = n
+		}
+	}
+	format := `%-` + strconv.Itoa(width) + `s`
+	for _, p := range ctx.GetPlugins() {
+		fmt.Fprintln(out, `  `, fmt.Sprintf(format, p.Name), p.Version)
+	}
+	fmt.Println(out.String())
 }
 
-var _ context.Context = (*Context)(nil)
+func (ctx *Context) GetPlugins() []*Plugin {
+	if ctx.plugins == nil {
+		in := bufio.NewScanner(bytes.NewReader(ctx.GetConfig()))
+		for in.Scan() {
+			line := strings.TrimSpace(in.Text())
+			if at := strings.IndexByte(line, '@'); at != -1 {
+				ctx.plugins = append(ctx.plugins, &Plugin{
+					Name:    filepath.Base(line[:at]),
+					Version: line[at+1:],
+					Module:  line,
+				})
+			}
+		}
+	}
+	return ctx.plugins
+}
 
-const RemoteConfig = Version
+func (ctx *Context) GetConfig() []byte {
+	data, _ := os.ReadFile(filepath.Join(ctx.HOME, LocalProfile))
+	if len(data) == 0 {
+		ctx.GoGet(Profile, Cnf)
+		data, _ = os.ReadFile(filepath.Join(ctx.HOME, LocalProfile))
+		if len(data) == 0 {
+			PrintExit("missing config")
+		}
+	}
+	return data
+}
+
+func (ctx *Context) GetPlugin(name string) *Plugin {
+	for _, p := range ctx.GetPlugins() {
+		if strings.EqualFold(p.Name, name) {
+			return p
+		}
+	}
+	PrintExit(`missing plugin %v`, name)
+	return nil
+}
+
+const RemoteProfile = Version
+const LocalProfile = `profile`
 
 type Mod uint8
 
@@ -239,3 +288,9 @@ const (
 	Dir Mod = 1
 	Cnf Mod = 2
 )
+
+type Plugin struct {
+	Name    string
+	Module  string
+	Version string
+}
