@@ -3,7 +3,6 @@ package protogen
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -17,18 +16,26 @@ import (
 	"strings"
 )
 
-func NewContext(args []string) *Context {
-
-	set := flag.NewFlagSet(args[0], flag.ExitOnError)
+func NewContext(profile, version string, args []string) *Context {
 
 	ctx := new(Context)
+	ctx.profile = profile
+	ctx.version = version
+	ctx.flagset = flag.NewFlagSet(args[0], flag.ExitOnError)
 	initSystemOptions(ctx)
-	initCustomOptions(ctx, set)
-	if err := set.Parse(args[1:]); err != nil {
+	initCustomOptions(ctx)
+	if err := ctx.flagset.Parse(args[1:]); err != nil {
 		PrintExit("parse argument error: %v", err)
 	}
-	ctx.flagset = set
-	ctx.Context, ctx.CancelFunc = context.WithCancel(context.Background())
+
+	if ctx.RootPath == `` {
+		if cwd, _ := os.Getwd(); cwd != `` {
+			ctx.RootPath = cwd
+		} else {
+			ctx.RootPath = `./`
+		}
+	}
+	ctx.RootPath, _ = filepath.Abs(ctx.RootPath)
 
 	return ctx
 }
@@ -36,16 +43,13 @@ func NewContext(args []string) *Context {
 type Context struct {
 	SystemOptions
 	CustomOptions
-	context.Context
-	context.CancelFunc
 	flagset *flag.FlagSet
 	plugins []*Plugin
+	profile string
+	version string
 }
 
 func (ctx *Context) Close() {
-	if ctx.CancelFunc != nil {
-		ctx.CancelFunc()
-	}
 	// 在Mac机型出现无权删除的情况!
 	filepath.Walk(ctx.TEMP, func(path string, info fs.FileInfo, err error) error {
 		os.Chmod(path, fs.ModePerm)
@@ -58,7 +62,7 @@ func (ctx *Context) Close() {
 	os.Remove(ctx.GoSumFile)
 }
 
-func (ctx *Context) GoGet(module string, which Mod) {
+func (ctx *Context) GoGet(module string, which Mode) {
 
 	if !Exists(ctx.HOME) {
 		os.MkdirAll(ctx.HOME, 0755)
@@ -76,7 +80,7 @@ func (ctx *Context) GoGet(module string, which Mod) {
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, Lookup(ctx.GO), sub, module)
+	cmd := exec.Command(Lookup(ctx.GO), sub, module)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append(cmd.Env, EnvironExclude(
@@ -137,11 +141,11 @@ func (ctx *Context) GoGet(module string, which Mod) {
 		}
 		os.Rename(newCnf, oldCnf)
 	case Cnf:
-		newCnf := RealPath(ctx.TEMP, module, RemoteProfile)
+		newCnf := RealPath(ctx.TEMP, module, ctx.version)
 		if newCnf == "" {
-			PrintExit("go get %v error: missing %v", module, RemoteProfile)
+			PrintExit("go get %v error: missing %v", module, ctx.version)
 		}
-		oldCnf := filepath.Join(ctx.HOME, LocalProfile)
+		oldCnf := filepath.Join(ctx.HOME, ctx.version)
 		if Exists(oldCnf) {
 			os.Chmod(oldCnf, fs.ModePerm)
 			os.RemoveAll(oldCnf)
@@ -150,7 +154,7 @@ func (ctx *Context) GoGet(module string, which Mod) {
 	}
 }
 
-func (ctx *Context) MavenProtoc(module string) {
+func (ctx *Context) Protoc(module string) {
 
 	name := filepath.Base(module)
 	version := `3.25.5`
@@ -225,7 +229,7 @@ func (ctx *Context) PrintUsage() {
 func (ctx *Context) PrintVersion() {
 	out := new(strings.Builder)
 	fmt.Fprintln(out, `version:`, Version)
-	fmt.Fprintln(out, `plugins:`)
+	fmt.Fprintln(out, `Plugins:`)
 	width := 0
 	for _, p := range ctx.GetPlugins() {
 		if n := len(p.Name); n > width {
@@ -245,11 +249,16 @@ func (ctx *Context) GetPlugins() []*Plugin {
 		for in.Scan() {
 			line := strings.TrimSpace(in.Text())
 			if at := strings.IndexByte(line, '@'); at != -1 {
-				ctx.plugins = append(ctx.plugins, &Plugin{
+				plugin := &Plugin{
 					Name:    filepath.Base(line[:at]),
 					Version: line[at+1:],
 					Module:  line,
-				})
+				}
+				// 版本过滤
+				if mode, ok := Plugins[plugin.Name]; ok {
+					plugin.Mode = mode
+					ctx.plugins = append(ctx.plugins, plugin)
+				}
 			}
 		}
 	}
@@ -257,10 +266,10 @@ func (ctx *Context) GetPlugins() []*Plugin {
 }
 
 func (ctx *Context) GetConfig() []byte {
-	data, _ := os.ReadFile(filepath.Join(ctx.HOME, LocalProfile))
+	data, _ := os.ReadFile(filepath.Join(ctx.HOME, ctx.version))
 	if len(data) == 0 {
 		ctx.GoGet(Profile, Cnf)
-		data, _ = os.ReadFile(filepath.Join(ctx.HOME, LocalProfile))
+		data, _ = os.ReadFile(filepath.Join(ctx.HOME, ctx.version))
 		if len(data) == 0 {
 			PrintExit("missing config")
 		}
@@ -278,19 +287,36 @@ func (ctx *Context) GetPlugin(name string) *Plugin {
 	return nil
 }
 
-const RemoteProfile = Version
-const LocalProfile = `profile`
+func (ctx *Context) UpdatePlugins() {
+	// 获取配置
+	ctx.GoGet(Profile, Cnf)
 
-type Mod uint8
+	// 清理目录
+	list, _ := os.ReadDir(ctx.HOME)
+	for _, item := range list {
+		// 排除掉profile
+		if ctx.version == item.Name() {
+			continue
+		}
+		itemPath := filepath.Join(ctx.HOME, item.Name())
+		if item.IsDir() {
+			filepath.Walk(itemPath, func(path string, info fs.FileInfo, err error) error {
+				os.Chmod(path, fs.ModePerm)
+				return nil
+			})
+			os.RemoveAll(itemPath)
+		} else {
+			os.Chmod(itemPath, fs.ModePerm)
+			os.Remove(itemPath)
+		}
+	}
 
-const (
-	Bin Mod = 0
-	Dir Mod = 1
-	Cnf Mod = 2
-)
-
-type Plugin struct {
-	Name    string
-	Module  string
-	Version string
+	// 重新安装
+	for _, p := range ctx.GetPlugins() {
+		if p.Mode == Protoc {
+			ctx.Protoc(p.Module)
+		} else {
+			ctx.GoGet(p.Module, p.Mode)
+		}
+	}
 }

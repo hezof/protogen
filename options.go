@@ -1,7 +1,6 @@
 package protogen
 
 import (
-	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,8 +13,8 @@ type CustomOptions struct {
 	Version   bool
 	Debug     bool
 	Update    bool
-	ProtoPath string // 多值逗号分隔
-	GoOut     string
+	RootPath  string // PD根路径
+	ProtoPath string // PD查找路径,多值逗号分隔
 	All       bool
 	Docs      bool
 	Json      bool
@@ -48,27 +47,28 @@ type SystemOptions struct {
 	GoSumFile string
 }
 
-func initCustomOptions(ops *Context, flag *flag.FlagSet) {
-	flag.BoolVar(&ops.Help, `h`, false, `打印帮助`)
-	flag.BoolVar(&ops.Help, `help`, false, `打印帮助`)
-	flag.BoolVar(&ops.Version, `version`, false, `打印版本`)
-	flag.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
-	flag.BoolVar(&ops.Update, `update`, false, `更新插件`)
-	flag.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径[逗号分隔]`)
-	flag.StringVar(&ops.GoOut, `go_out`, ``, `GO输出路径`)
-	flag.BoolVar(&ops.All, `all`, false, `执行所有插件`)
-	flag.BoolVar(&ops.Docs, `docs`, false, `生成文档片段[openapi]`)
-	flag.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)
-	flag.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
-	flag.BoolVar(&ops.Grpc, `grpc`, false, `生成GRPC代码`)
-	flag.BoolVar(&ops.GrpcV2, `grpc_v2`, false, `生成GRPC代码[require_unimplemented_servers=true]`)
-	flag.BoolVar(&ops.Http, `http`, false, `生成HTTP代码[restful,websocket,sse]`)
+func initCustomOptions(ops *Context) {
+	ops.flagset.BoolVar(&ops.Help, `h`, false, `打印帮助`)
+	ops.flagset.BoolVar(&ops.Help, `help`, false, `打印帮助`)
+	ops.flagset.BoolVar(&ops.Version, `version`, false, `打印版本`)
+	ops.flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
+	ops.flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
+	ops.flagset.StringVar(&ops.RootPath, `root_path`, ``, `PB根路径`)
+	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径[逗号分隔]`)
+	ops.flagset.BoolVar(&ops.All, `all`, false, `执行所有插件`)
+	ops.flagset.BoolVar(&ops.Docs, `docs`, false, `生成文档片段[openapi]`)
+	ops.flagset.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)
+	//ops.flagset.BoolVar(&ops.Json, `bson`, false, `生成BSON代码`)
+	//ops.flagset.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
+	ops.flagset.BoolVar(&ops.Grpc, `grpc`, false, `生成GRPC代码`)
+	ops.flagset.BoolVar(&ops.GrpcV2, `grpc_v2`, false, `生成GRPC代码[require_unimplemented_servers=true]`)
+	ops.flagset.BoolVar(&ops.Http, `http`, false, `生成HTTP代码[restful,websocket,sse]`)
 
-	flag.StringVar(&ops.GO, `go`, Env(`GO`, `go`), `GO命令路径`)
-	flag.StringVar(&ops.GOPROXY, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
-	flag.StringVar(&ops.GOPRIVATE, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `GOPRIVATE私有模块`)
-	flag.StringVar(&ops.CENTRAL, `central`, Env(`MAVEN_CENTRAL`, `https://maven.aliyun.com/repository/central`), `MAVEN中央仓库`)
-	flag.StringVar(&ops.PROFILE, `profile`, Env(`PROXY_PROFILE`, Profile), `PROXY配置模块`)
+	ops.flagset.StringVar(&ops.GO, `go`, Env(`GO`, `go`), `GO命令路径`)
+	ops.flagset.StringVar(&ops.GOPROXY, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
+	ops.flagset.StringVar(&ops.GOPRIVATE, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `GOPRIVATE私有模块`)
+	ops.flagset.StringVar(&ops.CENTRAL, `central`, Env(`MAVEN_CENTRAL`, `https://maven.aliyun.com/repository/central`), `MAVEN中央仓库`)
+	ops.flagset.StringVar(&ops.PROFILE, `profile`, Env(`PROXY_PROFILE`, Profile), `PROXY配置模块`)
 }
 
 func initSystemOptions(ops *Context) {
