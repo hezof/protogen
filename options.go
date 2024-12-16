@@ -107,4 +107,19 @@ func goexe() string {
 	}
 }
 
+func root(path string) string {
+	if path == `` {
+		if cwd, _ := os.Getwd(); cwd != `` {
+			path = cwd
+		} else {
+			path = `./`
+		}
+	}
+	ret, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return ret
+}
+
 var program = os.Args[0] // 批复程序名称,避免有人窜改os.args

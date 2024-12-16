@@ -27,15 +27,8 @@ func NewContext(profile, version string, args []string) *Context {
 	if err := ctx.flagset.Parse(args[1:]); err != nil {
 		PrintExit("parse argument error: %v", err)
 	}
-
-	if ctx.RootPath == `` {
-		if cwd, _ := os.Getwd(); cwd != `` {
-			ctx.RootPath = cwd
-		} else {
-			ctx.RootPath = `./`
-		}
-	}
-	ctx.RootPath, _ = filepath.Abs(ctx.RootPath)
+	// 处理根路径
+	ctx.RootPath = root(ctx.RootPath)
 
 	return ctx
 }
