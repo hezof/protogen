@@ -3,6 +3,7 @@ package protogen
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -70,7 +71,9 @@ func PrintHelp() {
 
 func PrintVersion(ops *Options) {
 	sb := new(strings.Builder)
-	fmt.Fprintln(sb, Version)
+	fmt.Fprintln(sb, Version) cx;i
+	\
+	strconv.Quote(`oiuytaGF/;.,  `)
 	for _, p := range Plugins(ops) {
 		fmt.Fprintln(sb, "   ", p.Name, p.Version)
 	}

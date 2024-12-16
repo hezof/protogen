@@ -3,52 +3,102 @@ package protogen
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 )
+
+func PrintError(format string, args ...any) {
+	fmt.Fprintln(os.Stdout, `protogen [E]`, fmt.Sprintf(format, args...))
+}
+
+func PrintInfo(format string, args ...any) {
+	fmt.Fprintln(os.Stdout, `protogen [I]`, fmt.Sprintf(format, args...))
+}
+
+func Env(key string, def string) string {
+	val := os.Getenv(key)
+	if val != `` {
+		return val
+	}
+	return def
+}
 
 func Exists(path string) bool {
 	sta, err := os.Stat(path)
 	return sta != nil || os.IsExist(err)
 }
 
-func Create(path string) (*os.File, error) {
-	dir := filepath.Dir(path)
-	if !Exists(dir) {
-		os.MkdirAll(dir, 0755)
+func Lookup(cmd string) string {
+	path, err := exec.LookPath(cmd)
+	if err != nil {
+		path = filepath.Join(filepath.Dir(os.Args[0]), cmd)
 	}
-	return os.Create(path)
+	path, _ = filepath.Abs(path)
+	return path
 }
 
-func Env(key string, def string) string {
-	val := os.Getenv(key)
-	if val == "" {
-		return val
+func RealPath(tmp string, module string, steps ...string) string {
+
+	/*
+		#https://golang.google.cn/ref/mod:
+		To avoid ambiguity when serving from case-insensitive file systems, the $module and $version elements
+		are case-encoded by replacing every uppercase letter with an exclamation mark followed by the corresponding
+		lower-case letter. This allows modules example.com/M and example.com/m to both be stored on disk,
+		since the former is encoded as example.com/!m.
+	*/
+
+	{
+		const diff = 'a' - 'A'
+		sb := new(strings.Builder)
+		for _, c := range module {
+			if c >= 'A' && c <= 'Z' {
+				sb.WriteByte('!')
+				sb.WriteRune(c + diff)
+			} else {
+				sb.WriteRune(c)
+			}
+		}
+		module = sb.String()
 	}
-	return val
+
+	parent := filepath.Join(tmp, filepath.Dir(module))
+	if !Exists(parent) {
+		return ""
+	}
+	prefix := filepath.Base(module)
+	if at := strings.IndexByte(prefix, '@'); at > 0 {
+		prefix = prefix[:at+1]
+	}
+
+	list, err := os.ReadDir(parent)
+	if err != nil {
+		return ""
+	}
+	for _, item := range list {
+		if strings.HasPrefix(item.Name(), prefix) {
+			root := filepath.Join(parent, item.Name())
+			for _, step := range steps {
+				root = filepath.Join(root, step)
+				if !Exists(root) {
+					return ""
+				}
+			}
+			return root
+		}
+	}
+	return ""
 }
 
-func PrintError(format string, args ...interface{}) {
-	//fmt.Fprintf(os.Stdout, "%s [E] - %s\n", time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf(format, args...))
-	fmt.Fprintln(os.Stdout, "[protogen]", fmt.Sprintf(format, args...))
-}
-
-func PrintInfo(format string, args ...interface{}) {
-	//fmt.Fprintf(os.Stdout, "%s [I] - %s\n", time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf(format, args...))
-	fmt.Fprintln(os.Stdout, "[protogen]", fmt.Sprintf(format, args...))
-}
-
-func GoGet(goproxy, goprivate string, module, version string, path string) error {
-
-}
-
-func GoInstall(goproxy, goprivate string, module, version string, path string) error {
-
-}
-
-func HttpGet(furl string, path string) error {
-
-}
-
-func GoGetFile(goproxy, goprivate string, module, version string, srcPath, dstPath string) error {
-
+func EnvironExclude(excludes ...string) (result []string) {
+__NEXT__:
+	for _, env := range os.Environ() {
+		for _, exclude := range excludes {
+			if strings.HasPrefix(env, exclude) {
+				continue __NEXT__
+			}
+		}
+		result = append(result, env)
+	}
+	return
 }
