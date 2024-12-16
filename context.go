@@ -147,7 +147,7 @@ func (ctx *Context) GoGet(module string, which Mode) {
 	}
 }
 
-func (ctx *Context) Protoc(module string) {
+func (ctx *Context) GetProtoc(module string) {
 
 	name := filepath.Base(module)
 	version := `3.25.5`
@@ -307,9 +307,34 @@ func (ctx *Context) UpdatePlugins() {
 	// 重新安装
 	for _, p := range ctx.GetPlugins() {
 		if p.Mode == Protoc {
-			ctx.Protoc(p.Module)
+			ctx.GetProtoc(p.Module)
 		} else {
 			ctx.GoGet(p.Module, p.Mode)
 		}
 	}
+}
+
+func (ctx *Context) EnsurePlugins() {
+	for k, _ := range Plugins {
+		if Exists(filepath.Join(ctx.HOME, k+ctx.GOEXE)) {
+			continue
+		}
+		if p := ctx.GetPlugin(k); p != nil {
+			if p.Mode == Protoc {
+				ctx.GetProtoc(p.Module)
+			} else {
+				ctx.GoGet(p.Module, p.Mode)
+			}
+		}
+	}
+}
+
+func (ctx *Context) Generate(info os.FileInfo, rel string) {
+	// 忽略不存在, 文件夹, 隐藏文件, 非.proto结尾的文件
+	if info == nil || info.IsDir() || strings.HasPrefix(info.Name(), ".") || !strings.HasSuffix(info.Name(), ".proto") {
+		return
+	}
+
+	rel = strings.ReplaceAll(rel, `\`, `/`)
+
 }
