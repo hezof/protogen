@@ -220,6 +220,14 @@ func (ctx *Context) MvnGet(module string) {
 	}
 }
 
+func (ctx *Context) PrintUsage() {
+
+}
+
+func (ctx *Context) PrintVersion() {
+
+}
+
 var _ context.Context = (*Context)(nil)
 
 const RemoteConfig = Version
