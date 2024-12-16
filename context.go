@@ -329,12 +329,11 @@ func (ctx *Context) EnsurePlugins() {
 	}
 }
 
-func (ctx *Context) Generate(info os.FileInfo, rel string) {
-	// 忽略不存在, 文件夹, 隐藏文件, 非.proto结尾的文件
-	if info == nil || info.IsDir() || strings.HasPrefix(info.Name(), ".") || !strings.HasSuffix(info.Name(), ".proto") {
+func (ctx *Context) Generate(info os.FileInfo, path string) {
+	rel, _ := filepath.Rel(ctx.RootPath, path)
+	rel = strings.ReplaceAll(rel, `\`, `/`)
+	if rel == `` {
 		return
 	}
-
-	rel = strings.ReplaceAll(rel, `\`, `/`)
 
 }
