@@ -147,7 +147,7 @@ func (ctx *Context) GoGet(module string, which Mode) {
 	}
 }
 
-func (ctx *Context) GetProtoc(module string) {
+func (ctx *Context) HttpGetProtoc(module string) {
 
 	name := filepath.Base(module)
 	version := `3.25.5`
@@ -196,18 +196,18 @@ func (ctx *Context) GetProtoc(module string) {
 	furl := ctx.CENTRAL + `/com/google/protobuf/protoc/` + version + `/protoc-` + version + `-` + sysOS + `-` + sysARCH + `.exe`
 	rsp, err := http.Get(furl)
 	if err != nil {
-		PrintExit(`mvn get %v error: %v`, name, err)
+		PrintExit(`http get %v error: %v`, name, err)
 	}
 	defer rsp.Body.Close()
 
 	data, err := io.ReadAll(rsp.Body)
 	if err != nil {
-		PrintExit(`mvn get %v error: %v`, name, err)
+		PrintExit(`http get %v error: %v`, name, err)
 	}
 
 	err = os.WriteFile(filepath.Join(ctx.HOME, name+ctx.GOEXE), data, 0755)
 	if err != nil {
-		PrintExit(`mvn get %v error: %v`, name, err)
+		PrintExit(`http get %v error: %v`, name, err)
 	}
 }
 
@@ -307,7 +307,7 @@ func (ctx *Context) UpdatePlugins() {
 	// 重新安装
 	for _, p := range ctx.GetPlugins() {
 		if p.Mode == Protoc {
-			ctx.GetProtoc(p.Module)
+			ctx.HttpGetProtoc(p.Module)
 		} else {
 			ctx.GoGet(p.Module, p.Mode)
 		}
@@ -321,7 +321,7 @@ func (ctx *Context) EnsurePlugins() {
 		}
 		if p := ctx.GetPlugin(k); p != nil {
 			if p.Mode == Protoc {
-				ctx.GetProtoc(p.Module)
+				ctx.HttpGetProtoc(p.Module)
 			} else {
 				ctx.GoGet(p.Module, p.Mode)
 			}
