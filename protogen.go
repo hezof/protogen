@@ -25,6 +25,18 @@ func Main(args []string) {
 		ctx.PrintUsage()
 	default:
 		ctx.EnsurePlugins()
+
+		protoPaths := make(map[string]any)
+		protoFiles := make(map[string]any)
+
+		protoPaths[ctx.RootPath] = nil
+		for _, p := range strings.Split(ctx.ProtoPath, `,`) {
+			p = strings.TrimSpace(p)
+			if p != `` {
+				protoPaths[p] = nil
+			}
+		}
+
 		for _, arg := range ctx.flagset.Args() {
 			path := filepath.Join(ctx.RootPath, arg)
 			info, err := os.Stat(path)
@@ -36,15 +48,17 @@ func Main(args []string) {
 					if err != nil || info.IsDir() || strings.HasPrefix(info.Name(), ".") || !strings.HasSuffix(info.Name(), ".proto") {
 						return nil
 					}
-					ctx.Generate(info, path)
+					protoFiles[path] = nil
 					return nil
 				})
 			} else {
 				if strings.HasPrefix(info.Name(), ".") || !strings.HasSuffix(info.Name(), ".proto") {
 					return
 				}
-				ctx.Generate(info, path)
+				protoFiles[path] = nil
 			}
 		}
+
+		ctx.Generate(keys(protoPaths), keys(protoFiles))
 	}
 }

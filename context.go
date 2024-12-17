@@ -329,11 +329,17 @@ func (ctx *Context) EnsurePlugins() {
 	}
 }
 
-func (ctx *Context) Generate(info os.FileInfo, path string) {
-	rel, _ := filepath.Rel(ctx.RootPath, path)
-	rel = strings.ReplaceAll(rel, `\`, `/`)
+func (ctx *Context) Generate(protoPaths []string, protoFiles []string) {
+	for _, protoFile := range protoFiles {
+		ctx.generate(protoPaths, protoFile)
+	}
+}
+
+func (ctx *Context) generate(protoPath []string, protoFile string) {
+	rel, _ := filepath.Rel(ctx.RootPath, protoFile)
 	if rel == `` {
 		return
 	}
+	rel = strings.ReplaceAll(rel, `\`, `/`)
 
 }
