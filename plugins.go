@@ -1,14 +1,16 @@
 package protogen
 
 var Plugins = map[string]Mode{
-	`include`:            Dir,
-	`protoc`:             Protoc,
-	`protoc-gen-go`:      Bin,
-	`protoc-gen-go-grpc`: Bin,
-	`protoc-gen-go-http`: Bin,
-	`protoc-gen-go-docs`: Bin,
-	`protoc-gen-go-json`: Bin,
-	`protoc-gen-go-sqlx`: Bin,
+	`include`:                 Dir,
+	`protoc`:                  Protoc,
+	`protoc-gen-go`:           Bin,
+	`protoc-gen-go-grpc`:      Bin,
+	`protoc-gen-go-protoapi`:  Bin,
+	`protoc-gen-go-openapi`:   Bin,
+	`protoc-gen-go-validator`: Bin,
+	`protoc-gen-go-json`:      Bin,
+	`protoc-gen-go-bson`:      Bin,
+	`protoc-gen-go-sqlx`:      Bin,
 }
 
 type Mode uint8

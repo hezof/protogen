@@ -29,6 +29,38 @@ func NewContext(profile, version string, args []string) *Context {
 	}
 	// 处理根路径
 	ctx.RootPath = root(ctx.RootPath)
+	// 处理插件依赖
+	if ctx.Json {
+		ctx.base = true
+	}
+	if ctx.Sqlx {
+		ctx.base = true
+	}
+	if ctx.Bson {
+		ctx.base = true
+	}
+	if ctx.Validator {
+		ctx.base = true
+	}
+	if ctx.Grpc || ctx.GrpcV2 {
+		ctx.base = true
+	}
+	if ctx.ProtoApi {
+		ctx.base = true
+		ctx.Grpc = true
+		ctx.Json = true
+		ctx.Validator = true
+	}
+	if ctx.All {
+		ctx.base = true
+		ctx.Grpc = true
+		ctx.ProtoApi = true
+		ctx.OpenApi = true
+		ctx.Validator = true
+		ctx.Json = true
+		ctx.Bson = true
+		ctx.Sqlx = true
+	}
 
 	return ctx
 }
@@ -40,6 +72,7 @@ type Context struct {
 	plugins []*Plugin
 	profile string
 	version string
+	base    bool
 }
 
 func (ctx *Context) Close() {

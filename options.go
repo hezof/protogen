@@ -16,13 +16,14 @@ type CustomOptions struct {
 	RootPath  string // PD根路径
 	ProtoPath string // PD查找路径,多值逗号分隔
 	All       bool
-	Docs      bool
 	Json      bool
 	Bson      bool
 	Sqlx      bool
 	Grpc      bool
 	GrpcV2    bool
-	Http      bool
+	ProtoApi  bool
+	Validator bool
+	OpenApi   bool
 
 	GO        string
 	GOPROXY   string
@@ -56,13 +57,14 @@ func initCustomOptions(ops *Context) {
 	ops.flagset.StringVar(&ops.RootPath, `root_path`, ``, `PB根路径`)
 	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径[逗号分隔]`)
 	ops.flagset.BoolVar(&ops.All, `all`, false, `执行所有插件`)
-	ops.flagset.BoolVar(&ops.Docs, `docs`, false, `生成文档片段[openapi]`)
 	ops.flagset.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)
-	//ops.flagset.BoolVar(&ops.Json, `bson`, false, `生成BSON代码`)
-	//ops.flagset.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
+	ops.flagset.BoolVar(&ops.Bson, `bson`, false, `生成BSON代码`)
+	ops.flagset.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
 	ops.flagset.BoolVar(&ops.Grpc, `grpc`, false, `生成GRPC代码`)
 	ops.flagset.BoolVar(&ops.GrpcV2, `grpc_v2`, false, `生成GRPC代码[require_unimplemented_servers=true]`)
-	ops.flagset.BoolVar(&ops.Http, `http`, false, `生成HTTP代码[restful,websocket,sse]`)
+	ops.flagset.BoolVar(&ops.ProtoApi, `protoapi`, false, `生成PROTOAPI代码[restful,websocket,sse]`)
+	ops.flagset.BoolVar(&ops.OpenApi, `openapi`, false, `生成OPENAPI文档`)
+	ops.flagset.BoolVar(&ops.Validator, `validator`, false, `生成VALIDATOR代码`)
 
 	ops.flagset.StringVar(&ops.GO, `go`, Env(`GO`, `go`), `GO命令路径`)
 	ops.flagset.StringVar(&ops.GOPROXY, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
