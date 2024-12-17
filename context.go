@@ -30,6 +30,16 @@ func NewContext(profile, version string, args []string) *Context {
 	// 处理根路径
 	ctx.RootPath = root(ctx.RootPath)
 	// 处理插件依赖
+	if ctx.All {
+		ctx.base = true
+		ctx.Grpc = true
+		ctx.ProtoApi = true
+		ctx.OpenApi = true
+		ctx.Validator = true
+		ctx.Json = true
+		ctx.Bson = true
+		ctx.Sqlx = true
+	}
 	if ctx.Json {
 		ctx.base = true
 	}
@@ -50,16 +60,6 @@ func NewContext(profile, version string, args []string) *Context {
 		ctx.Grpc = true
 		ctx.Json = true
 		ctx.Validator = true
-	}
-	if ctx.All {
-		ctx.base = true
-		ctx.Grpc = true
-		ctx.ProtoApi = true
-		ctx.OpenApi = true
-		ctx.Validator = true
-		ctx.Json = true
-		ctx.Bson = true
-		ctx.Sqlx = true
 	}
 
 	return ctx
@@ -369,10 +369,64 @@ func (ctx *Context) Generate(protoPaths []string, protoFiles []string) {
 }
 
 func (ctx *Context) generate(protoPath []string, protoFile string) {
-	rel, _ := filepath.Rel(ctx.RootPath, protoFile)
-	if rel == `` {
-		return
-	}
-	rel = strings.ReplaceAll(rel, `\`, `/`)
+	// 外面已经证protoFile存在
+	protoFile, _ = filepath.Rel(ctx.RootPath, protoFile)
+	// 转成linux路径格式
+	protoFile = strings.ReplaceAll(protoFile, `\`, `/`)
 
+	var args []string
+
+	if ctx.base {
+		args = append(args, `--plugin=protoc-gen-go=`+filepath.Join(ctx.HOME, `protoc-gen-go`))
+		args = append(args, `--go_out=`+ctx.RootPath)
+	}
+	if ctx.Grpc || ctx.GrpcV2 {
+		args = append(args, `--plugin=protoc-gen-go-grpc=`+filepath.Join(ctx.HOME, `protoc-gen-go-grpc`))
+		if ctx.GrpcV2 {
+			args = append(args, `--go-grpc_out=require_unimplemented_servers=true:`+ctx.RootPath)
+		} else {
+			args = append(args, `--go-grpc_out=require_unimplemented_servers=false:`+ctx.RootPath)
+		}
+	}
+	if ctx.ProtoApi {
+		args = append(args, `--plugin=protoc-gen-go-protoapi=`+filepath.Join(ctx.HOME, `protoc-gen-go-protoapi`))
+		args = append(args, `--go-protoapi_out=`+ctx.RootPath)
+	}
+	if ctx.OpenApi {
+		args = append(args, `--plugin=protoc-gen-go-openapi=`+filepath.Join(ctx.HOME, `protoc-gen-go-openapi`))
+		args = append(args, `--go-openapi_out=`+ctx.RootPath)
+	}
+	if ctx.Validator {
+		args = append(args, `--plugin=protoc-gen-go-validator=`+filepath.Join(ctx.HOME, `protoc-gen-go-validator`))
+		args = append(args, `--go-validator_out=`+ctx.RootPath)
+	}
+	if ctx.Json {
+		args = append(args, `--plugin=protoc-gen-go-json=`+filepath.Join(ctx.HOME, `protoc-gen-go-json`))
+		args = append(args, `--go-json_out=`+ctx.RootPath)
+	}
+	if ctx.Bson {
+		args = append(args, `--plugin=protoc-gen-go-bson=`+filepath.Join(ctx.HOME, `protoc-gen-go-bson`))
+		args = append(args, `--go-bson_out=`+ctx.RootPath)
+	}
+	if ctx.Sqlx {
+		args = append(args, `--plugin=protoc-gen-go-sqlx=`+filepath.Join(ctx.HOME, `protoc-gen-go-sqlx`))
+		args = append(args, `--go-sqlx_out=`+ctx.RootPath)
+	}
+
+	args = append(args, `--proto_path=`+filepath.Join(ctx.HOME, `include`))
+	for _, path := range protoPath {
+		args = append(args, `--proto_path=`+path)
+	}
+
+	PrintInfo(`build %s`, protoFile)
+	protoc := filepath.Join(ctx.HOME, `protoc`)
+	cmd := exec.Command(protoc, args...)
+	if ctx.Debug {
+		fmt.Fprintln(os.Stdout, protoc, strings.Join(args, ` `)) // 打印命令
+		cmd.Stdout = os.Stdout
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		PrintExit(`build error: %+v`, err)
+	}
 }
