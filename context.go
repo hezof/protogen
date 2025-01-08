@@ -309,7 +309,6 @@ func (ctx *Context) GetPlugin(name string) *Plugin {
 			return p
 		}
 	}
-	PrintExit(`missing plugin %v`, name)
 	return nil
 }
 
@@ -358,6 +357,8 @@ func (ctx *Context) EnsurePlugins() {
 			} else {
 				ctx.GoGet(p.Module, p.Mode)
 			}
+		} else {
+			PrintWarn(`download plugin %v failed`, k)
 		}
 	}
 }

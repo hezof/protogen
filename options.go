@@ -54,7 +54,7 @@ func initCustomOptions(ops *Context) {
 	ops.flagset.BoolVar(&ops.Version, `version`, false, `打印版本`)
 	ops.flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
 	ops.flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
-	ops.flagset.StringVar(&ops.RootPath, `root_path`, ``, `PB根路径`)
+	ops.flagset.StringVar(&ops.RootPath, `root_path`, Cwd(), `PB根路径`)
 	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径[逗号分隔]`)
 	ops.flagset.BoolVar(&ops.All, `all`, false, `执行所有插件`)
 	ops.flagset.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)

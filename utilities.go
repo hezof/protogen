@@ -17,12 +17,24 @@ func PrintInfo(format string, args ...any) {
 	fmt.Fprintln(os.Stdout, `protogen [I]`, fmt.Sprintf(format, args...))
 }
 
+func PrintWarn(format string, args ...any) {
+	fmt.Fprintln(os.Stdout, `protogen [W]`, fmt.Sprintf(format, args...))
+}
+
 func Env(key string, def string) string {
 	val := os.Getenv(key)
 	if val != `` {
 		return val
 	}
 	return def
+}
+
+func Cwd() string {
+	cwd, _ := os.Getwd()
+	if cwd == "" {
+		cwd = "./"
+	}
+	return cwd
 }
 
 func Exists(path string) bool {
