@@ -106,7 +106,7 @@ __NEXT__:
 
 func keys(m map[string]any) []string {
 	s := make([]string, 0, len(m))
-	for k, _ := range m {
+	for k := range m {
 		s = append(s, k)
 	}
 	return s

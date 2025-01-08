@@ -348,7 +348,7 @@ func (ctx *Context) UpdatePlugins() {
 }
 
 func (ctx *Context) EnsurePlugins() {
-	for k, _ := range Plugins {
+	for k := range Plugins {
 		if Exists(filepath.Join(ctx.HOME, k+ctx.GOEXE)) {
 			continue
 		}
