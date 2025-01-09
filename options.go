@@ -1,28 +1,28 @@
-package protogen
+package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // CustomOptions 用户选项
 type CustomOptions struct {
-	Version      bool
-	Update       bool
-	Debug        bool
-	GoOut        string // GO输出目录
-	ProtoPath    string // PD查找路径,多值逗号分隔
-	GrpcV2       bool
-	GoProxy      string
-	GoPrivate    string
-	MavenCentral string
+	Help      bool   // 打印帮助
+	Debug     bool   // 打印调试
+	Update    bool   // 更新插件
+	Config    string // 配置变量, 例如: "VERSION=0.5.1;GOPROXY=https://goproxy.cn;GOPRIVATE=*.net,*.cn"
+	GoOut     string // GO输出目录
+	ProtoBase string // PB基准目录
+	ProtoPath string // PB查找目录,多值逗号分隔
+	GrpcV2    bool   // 生成GRPCv2代码[require_unimplemented_servers=true]
 }
 
 // SystemOptions 系统选项
 type SystemOptions struct {
-	WorkDir    string // 当前工作目录
 	HomeDir    string // .protogen目录
 	TempDir    string // .protogen/tmp目录
 	IncludeDir string // .protogen/include目录
@@ -39,19 +39,17 @@ type SystemOptions struct {
 }
 
 func initCustomOptions(ops *Context) {
-	ops.flagset.BoolVar(&ops.Version, `version`, false, `打印版本`)
-	ops.flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
+	ops.flagset.BoolVar(&ops.Help, `help`, false, `打印帮助`)
 	ops.flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
-	ops.flagset.StringVar(&ops.GoOut, `go_out`, work(), `Go输出路径`)
-	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, work(), `PB查找路径[逗号分隔]`)
+	ops.flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
+	ops.flagset.StringVar(&ops.Config, `config`, ``, fmt.Sprintf(`配置变量.默认"VERSION=%v;GOPROXY=%v;GOPRIVATE=%v;MAVEN_CENTRAL=%v"`, Version, `https://goproxy.cn`, `*.net,*.cn`, `https://maven.aliyun.com/repository/central`))
+	ops.flagset.StringVar(&ops.GoOut, `go_out`, work(), `GO输出目录,默认当前目录`)
+	ops.flagset.StringVar(&ops.ProtoBase, `proto_base`, work(), `PB基准目录,默认当前目录`)
+	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找目录[逗号分隔]`)
 	ops.flagset.BoolVar(&ops.GrpcV2, `grpc_v2`, false, `生成GRPC代码[require_unimplemented_servers=true]`)
-	ops.flagset.StringVar(&ops.GoProxy, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
-	ops.flagset.StringVar(&ops.GoPrivate, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `GOPRIVATE私有模块`)
-	ops.flagset.StringVar(&ops.MavenCentral, `maven_central`, Env(`MAVEN_CENTRAL`, `https://maven.aliyun.com/repository/central`), `MAVEN中央仓库`)
 }
 
 func initSystemOptions(ops *Context) {
-	ops.WorkDir = work()
 	ops.HomeDir = home()
 	ops.TempDir = filepath.Join(ops.HomeDir, `tmp`)
 	ops.IncludeDir = filepath.Join(ops.HomeDir, `include`)
@@ -66,6 +64,41 @@ func initSystemOptions(ops *Context) {
 	ops.GOCACHE = ops.TempDir
 	ops.GOTMPDIR = ops.TempDir
 
+}
+
+type Config struct {
+	VERSION       string // protogen版本, 默认: Version
+	GOPROXY       string // go代理仓库, 默认: https://goproxy.cn
+	GOPRIVATE     string // go私有代理, 默认: *.net,*.cn
+	MAVEN_CENTRAL string // maven中央仓库, 默认: https://maven.aliyun.com/repository/central
+}
+
+func parseConfig(s string) *Config {
+	c := new(Config)
+	// 默认值
+	c.VERSION = Version
+	c.GOPROXY = `https://goproxy.cn`
+	c.GOPRIVATE = `*.net,*.cn`
+	c.MAVEN_CENTRAL = `https://maven.aliyun.com/repository/central`
+	// 参数值
+	for _, env := range strings.Split(s, ";") {
+		kvs := strings.SplitN(strings.TrimSpace(env), "=", 3)
+		if len(kvs) > 1 {
+			k := strings.TrimSpace(kvs[0])
+			v := strings.TrimSpace(kvs[1])
+			switch k {
+			case `VERSION`:
+				c.VERSION = v
+			case `GOPROXY`:
+				c.GOPROXY = v
+			case `GOPRIVATE`:
+				c.GOPRIVATE = v
+			case `MAVEN_CENTRAL`:
+				c.MAVEN_CENTRAL = v
+			}
+		}
+	}
+	return c
 }
 
 func work() string {

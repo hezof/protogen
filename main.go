@@ -1,4 +1,4 @@
-package protogen
+package main
 
 import (
 	"io/fs"
@@ -7,37 +7,33 @@ import (
 	"strings"
 )
 
-const (
-	Profile = `github.com/hezof/profile@main`
-	Version = `v0.5.1`
-)
-
-func Main(args []string) {
-	ctx := NewContext(Profile, Version, args)
+func main() {
+	ctx := NewContext(os.Args[1:])
 	switch {
-	case ctx.Version:
-		ctx.PrintVersion()
+	case ctx.Help:
+		ctx.PrintHelp()
 	case ctx.Update:
-		ctx.EnsurePlugins(true)
+		ctx.UpdatePlugin(parseConfig(ctx.Config), true)
 	case len(ctx.flagset.Args()) == 0:
-		ctx.PrintUsage()
+		ctx.PrintHelp()
 	default:
-		ctx.EnsurePlugins(false)
+		ctx.UpdatePlugin(parseConfig(ctx.Config), false)
 
-		protoPaths := make(map[string]any)
-		protoFiles := make(map[string]any)
+		// 重复路径或文件需要去重处理
+		protoPaths := make(map[string]bool)
+		protoFiles := make(map[string]string)
 
-		protoPaths[ctx.WorkDir] = nil
-		protoPaths[ctx.IncludeDir] = nil
+		protoPaths[ctx.ProtoBase] = true
+		protoPaths[ctx.IncludeDir] = true
 		for _, p := range strings.Split(ctx.ProtoPath, `,`) {
 			p = strings.TrimSpace(p)
 			if p != `` {
-				protoPaths[p] = nil
+				protoPaths[p] = true
 			}
 		}
 
 		for _, arg := range ctx.flagset.Args() {
-			path := filepath.Join(ctx.RootPath, arg)
+			path := filepath.Join(ctx.ProtoBase, arg)
 			info, err := os.Stat(path)
 			if info == nil || os.IsNotExist(err) {
 				continue
@@ -47,14 +43,22 @@ func Main(args []string) {
 					if err != nil || info.IsDir() || strings.HasPrefix(info.Name(), ".") || !strings.HasSuffix(info.Name(), ".proto") {
 						return nil
 					}
-					protoFiles[path] = nil
+					rel, err := filepath.Rel(ctx.ProtoBase, path)
+					if err != nil {
+						rel = path
+					}
+					protoFiles[rel] = path
 					return nil
 				})
 			} else {
 				if strings.HasPrefix(info.Name(), ".") || !strings.HasSuffix(info.Name(), ".proto") {
 					return
 				}
-				protoFiles[path] = nil
+				rel, err := filepath.Rel(ctx.ProtoBase, path)
+				if err != nil {
+					rel = path
+				}
+				protoFiles[rel] = path
 			}
 		}
 

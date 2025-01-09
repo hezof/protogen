@@ -1,4 +1,4 @@
-package protogen
+package main
 
 import (
 	"fmt"
@@ -108,7 +108,7 @@ __NEXT__:
 	return
 }
 
-func keys(m map[string]any) []string {
+func keys[V any](m map[string]V) []string {
 	s := make([]string, 0, len(m))
 	for k := range m {
 		s = append(s, k)
