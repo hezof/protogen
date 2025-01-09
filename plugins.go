@@ -1,7 +1,7 @@
 package main
 
 var Module = `github.com/hezof/protogen`
-var Version = `v0.5.0`
+var Version = `v0.5.1`
 
 var Plugins = []*Plugin{
 	{
