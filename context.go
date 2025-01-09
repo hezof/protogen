@@ -103,10 +103,14 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		}
 		oldBin := os.Args[0] // 应用程序路径
 		if Exists(oldBin) {
-			os.Chmod(oldBin, fs.ModePerm)
-			os.Remove(oldBin)
+			_, err := os.StartProcess(newBin, []string{__self_update__, oldBin, newBin}, &os.ProcAttr{
+				Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+			})
+			if err != nil {
+				PrintExit("self update error: %v", err)
+			}
+			os.Exit(0)
 		}
-		os.Rename(newBin, oldBin)
 	case GoGetBin:
 		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
 		if !Exists(newBin) {
@@ -132,7 +136,6 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 			os.RemoveAll(oldSrc)
 		}
 		os.Rename(newSrc, oldSrc)
-
 	}
 }
 
@@ -140,9 +143,7 @@ func (ctx *Context) HttpGetProtoc(config *Config, module, version string) {
 
 	name := filepath.Base(module)
 	if version == `` {
-		version = `3.21.12`
-	} else if version[0] == 'v' {
-		version = version[1:]
+		version = `v3.21.12`
 	}
 
 	sysOS := runtime.GOOS
@@ -177,7 +178,7 @@ func (ctx *Context) HttpGetProtoc(config *Config, module, version string) {
 		sysARCH = `s390x`
 	}
 
-	furl := config.MAVEN_CENTRAL + `/com/google/protobuf/protoc/` + version + `/protoc-` + version + `-` + sysOS + `-` + sysARCH + `.exe`
+	furl := config.MAVEN_CENTRAL + `/com/google/protobuf/protoc/` + version[1:] + `/protoc-` + version[1:] + `-` + sysOS + `-` + sysARCH + `.exe`
 	rsp, err := http.Get(furl)
 	if err != nil {
 		PrintExit(`http get %v error: %v`, name, err)
@@ -209,6 +210,7 @@ func (ctx *Context) PrintHelp() {
 	for _, p := range Plugins {
 		fmt.Fprintln(out, ` `, fmt.Sprintf(format, p.Name), p.Version)
 	}
+	fmt.Fprintln(out)
 	fmt.Fprintln(out, `Usage: protogen [options] <rel_dir|rel_file> [...]`)
 	ctx.flagset.SetOutput(out)
 	ctx.flagset.PrintDefaults()
@@ -218,16 +220,8 @@ func (ctx *Context) PrintHelp() {
 func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 
 	if Version != c.VERSION {
-		ctx.GoGet(c, Module, Version, GoGetProtogen)
-		// 执行重启命令
-		cmd := exec.Command(os.Args[0], os.Args[1:]...)
-		cmd.Env = os.Environ() // 拼加标志
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		if err := cmd.Start(); err != nil {
-			PrintExit("upgrade failed")
-		}
-		return
+		ctx.GoGet(c, Module, c.VERSION, GoGetProtogen)
+
 	}
 
 	for _, p := range Plugins {
@@ -289,3 +283,15 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 		PrintExit(`build error: %+v`, err)
 	}
 }
+
+func (ctx *Context) checkSelfUpdate() bool {
+	if __self_update__ == os.Args[0] {
+		os.Chmod(os.Args[1], os.ModePerm)
+		os.Remove(os.Args[1])
+		os.Rename(os.Args[2], os.Args[1])
+		return true
+	}
+	return false
+}
+
+const __self_update__ = `__self_update__`

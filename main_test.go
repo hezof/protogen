@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"syscall"
+	"testing"
+)
 
 func TestMainCase(t *testing.T) {
 	args := []string{
@@ -9,5 +13,5 @@ func TestMainCase(t *testing.T) {
 		"D:\\Workspace\\hezof\\github.com\\hezof\\protogen\\test",
 		"protoapi.proto",
 	}
-	Main(args)
+	os.StartProcess()
 }

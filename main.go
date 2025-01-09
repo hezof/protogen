@@ -11,8 +11,14 @@ var Module = `github.com/hezof/protogen`
 var Version = `v0.5.0`
 
 func main() {
+
 	ctx := NewContext(os.Args[1:])
 	defer ctx.Close()
+
+	if ctx.checkSelfUpdate() {
+		PrintInfo("self update successfully")
+		os.Exit(0)
+	}
 
 	switch {
 	case ctx.Help:
