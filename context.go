@@ -109,7 +109,6 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 			if err != nil {
 				PrintExit("self update error: %v", err)
 			}
-			os.Exit(0)
 		}
 	case GoGetBin:
 		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
@@ -221,7 +220,7 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 
 	if Version != c.VERSION {
 		ctx.GoGet(c, Module, c.VERSION, GoGetProtogen)
-
+		os.Exit(0)
 	}
 
 	for _, p := range Plugins {
