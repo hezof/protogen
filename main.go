@@ -9,6 +9,8 @@ import (
 
 func main() {
 	ctx := NewContext(os.Args[1:])
+	defer ctx.Close()
+
 	switch {
 	case ctx.Help:
 		ctx.PrintHelp()

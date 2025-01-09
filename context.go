@@ -283,8 +283,6 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 	if ctx.Debug {
 		fmt.Fprintln(os.Stdout, protoc, strings.Join(args, ` `)) // 打印命令
 		cmd.Stdout = os.Stdout
-	} else {
-		cmd.Stdout = os.DevNull
 	}
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
