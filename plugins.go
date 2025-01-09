@@ -13,31 +13,31 @@ var Plugins = []*Plugin{
 	{
 		Mode:    GoGetSrc,
 		Name:    "include",
-		Module:  "github.com/hezof/protogen/cmd/include",
+		Module:  "github.com/hezof/protogen/plugin/include",
 		Version: "v0.5.0",
 	},
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go-protoapi",
-		Module:  "github.com/hezof/protogen/cmd/protoc-gen-go-protoapi",
+		Module:  "github.com/hezof/protogen/plugin/protoc-gen-go-protoapi",
 		Version: "v0.5.0",
 	},
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go-openapi",
-		Module:  "github.com/hezof/protogen/cmd/protoc-gen-go-openapi",
+		Module:  "github.com/hezof/protogen/plugin/protoc-gen-go-openapi",
 		Version: "v0.5.0",
 	},
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go",
-		Module:  "google.golang.org/protobuf/cmd/protoc-gen-go",
+		Module:  "google.golang.org/protobuf/plugin/protoc-gen-go",
 		Version: "v1.36.2",
 	},
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go-grpc",
-		Module:  "google.golang.org/grpc/cmd/protoc-gen-go-grpc",
+		Module:  "google.golang.org/grpc/plugin/protoc-gen-go-grpc",
 		Version: "v1.5.1",
 	},
 }
