@@ -88,7 +88,7 @@ func (ctx *Context) Close() {
 	os.Remove(ctx.GoSumFile)
 }
 
-func (ctx *Context) GoGet(module string, which Mode) {
+func (ctx *Context) GoGet(module string, src bool) {
 
 	if !Exists(ctx.HOME) {
 		os.MkdirAll(ctx.HOME, 0755)
@@ -99,7 +99,7 @@ func (ctx *Context) GoGet(module string, which Mode) {
 	}
 
 	sub := `install`
-	if which != Bin {
+	if src {
 		sub = `get`
 		if !Exists(ctx.GoModFile) {
 			os.WriteFile(ctx.GoModFile, []byte(`module protogen`), fs.ModePerm)
@@ -141,8 +141,7 @@ func (ctx *Context) GoGet(module string, which Mode) {
 		name = name[:at]
 	}
 
-	switch which {
-	case Bin:
+	if src {
 		newBin := filepath.Join(ctx.TEMP, name+ctx.GOEXE)
 		if !Exists(newBin) {
 			PrintExit("go get %v failed", module)
@@ -152,32 +151,22 @@ func (ctx *Context) GoGet(module string, which Mode) {
 			os.Remove(oldBin)
 		}
 		os.Rename(newBin, oldBin)
-	case Dir:
-		newCnf := RealPath(ctx.TEMP, module)
-		if newCnf == "" {
+	} else {
+		newSrc := RealPath(ctx.TEMP, module)
+		if newSrc == "" {
 			PrintExit("go get %v failed", module)
 		}
-		oldCnf := filepath.Join(ctx.HOME, name)
-		if Exists(oldCnf) {
-			filepath.Walk(oldCnf, func(path string, info fs.FileInfo, err error) error {
+		oldSrc := filepath.Join(ctx.HOME, name)
+		if Exists(oldSrc) {
+			filepath.Walk(oldSrc, func(path string, info fs.FileInfo, err error) error {
 				os.Chmod(path, fs.ModePerm)
 				return nil
 			})
-			os.RemoveAll(oldCnf)
+			os.RemoveAll(oldSrc)
 		}
-		os.Rename(newCnf, oldCnf)
-	case Cnf:
-		newCnf := RealPath(ctx.TEMP, module, ctx.version)
-		if newCnf == "" {
-			PrintExit("go get %v error: missing %v", module, ctx.version)
-		}
-		oldCnf := filepath.Join(ctx.HOME, ctx.version)
-		if Exists(oldCnf) {
-			os.Chmod(oldCnf, fs.ModePerm)
-			os.RemoveAll(oldCnf)
-		}
-		os.Rename(newCnf, oldCnf)
+		os.Rename(newSrc, oldSrc)
 	}
+
 }
 
 func (ctx *Context) HttpGetProtoc(module string) {

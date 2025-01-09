@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	Profile = `github.com/hezof/profile`
-	Version = `v0.5.0`
+	Profile = `github.com/hezof/profile@main`
+	Version = `v0.5.1`
 )
 
 func Main(args []string) {
