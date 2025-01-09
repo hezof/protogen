@@ -9,33 +9,26 @@ import (
 
 // CustomOptions 用户选项
 type CustomOptions struct {
-	Help      bool
-	Version   bool
-	Debug     bool
-	Update    bool
-	RootPath  string // PD根路径
-	ProtoPath string // PD查找路径,多值逗号分隔
-	All       bool
-	Json      bool
-	Bson      bool
-	Sqlx      bool
-	Grpc      bool
-	GrpcV2    bool
-	ProtoApi  bool
-	Validator bool
-	OpenApi   bool
-
-	GO        string
-	GOPROXY   string
-	GOPRIVATE string
-	CENTRAL   string
-	PROFILE   string
+	Version      bool
+	Update       bool
+	Debug        bool
+	GoOut        string // GO输出目录
+	ProtoPath    string // PD查找路径,多值逗号分隔
+	GrpcV2       bool
+	GoProxy      string
+	GoPrivate    string
+	MavenCentral string
 }
 
 // SystemOptions 系统选项
 type SystemOptions struct {
-	HOME        string
-	TEMP        string
+	WorkDir    string // 当前工作目录
+	HomeDir    string // .protogen目录
+	TempDir    string // .protogen/tmp目录
+	IncludeDir string // .protogen/include目录
+	GoModFile  string // .protogen/go.mod文件
+	GoSumFile  string // .protogen/go.sum文件
+
 	GO111MODULE string
 	GOSUMDB     string
 	GOEXE       string
@@ -43,49 +36,45 @@ type SystemOptions struct {
 	GOMODCACHE  string
 	GOCACHE     string
 	GOTMPDIR    string
-
-	GoModFile string
-	GoSumFile string
 }
 
 func initCustomOptions(ops *Context) {
-	ops.flagset.BoolVar(&ops.Help, `h`, false, `打印帮助`)
-	ops.flagset.BoolVar(&ops.Help, `help`, false, `打印帮助`)
 	ops.flagset.BoolVar(&ops.Version, `version`, false, `打印版本`)
-	ops.flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
 	ops.flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
-	ops.flagset.StringVar(&ops.RootPath, `root_path`, Cwd(), `PB根路径`)
-	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找路径[逗号分隔]`)
-	ops.flagset.BoolVar(&ops.All, `all`, false, `执行所有插件`)
-	ops.flagset.BoolVar(&ops.Json, `json`, false, `生成JSON代码`)
-	ops.flagset.BoolVar(&ops.Bson, `bson`, false, `生成BSON代码`)
-	ops.flagset.BoolVar(&ops.Sqlx, `sqlx`, false, `生成SQLX代码`)
-	ops.flagset.BoolVar(&ops.Grpc, `grpc`, false, `生成GRPC代码`)
+	ops.flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
+	ops.flagset.StringVar(&ops.GoOut, `go_out`, work(), `Go输出路径`)
+	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, work(), `PB查找路径[逗号分隔]`)
 	ops.flagset.BoolVar(&ops.GrpcV2, `grpc_v2`, false, `生成GRPC代码[require_unimplemented_servers=true]`)
-	ops.flagset.BoolVar(&ops.ProtoApi, `protoapi`, false, `生成PROTOAPI代码[restful,websocket,sse]`)
-	ops.flagset.BoolVar(&ops.OpenApi, `openapi`, false, `生成OPENAPI文档`)
-	ops.flagset.BoolVar(&ops.Validator, `validator`, false, `生成VALIDATOR代码`)
-
-	ops.flagset.StringVar(&ops.GO, `go`, Env(`GO`, `go`), `GO命令路径`)
-	ops.flagset.StringVar(&ops.GOPROXY, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
-	ops.flagset.StringVar(&ops.GOPRIVATE, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `GOPRIVATE私有模块`)
-	ops.flagset.StringVar(&ops.CENTRAL, `central`, Env(`MAVEN_CENTRAL`, `https://maven.aliyun.com/repository/central`), `MAVEN中央仓库`)
-	ops.flagset.StringVar(&ops.PROFILE, `profile`, Env(`PROXY_PROFILE`, Profile), `PROXY配置模块`)
+	ops.flagset.StringVar(&ops.GoProxy, `goproxy`, Env(`GOPROXY`, `https://goproxy.cn`), `GOPROXY代理仓库`)
+	ops.flagset.StringVar(&ops.GoPrivate, `goprivate`, Env(`GOPRIVATE`, `*.net,*.cn`), `GOPRIVATE私有模块`)
+	ops.flagset.StringVar(&ops.MavenCentral, `maven_central`, Env(`MAVEN_CENTRAL`, `https://maven.aliyun.com/repository/central`), `MAVEN中央仓库`)
 }
 
 func initSystemOptions(ops *Context) {
-	ops.HOME = home()
-	ops.TEMP = filepath.Join(ops.HOME, `tmp`)
+	ops.WorkDir = work()
+	ops.HomeDir = home()
+	ops.TempDir = filepath.Join(ops.HomeDir, `tmp`)
+	ops.IncludeDir = filepath.Join(ops.HomeDir, `include`)
+	ops.GoModFile = filepath.Join(ops.HomeDir, `go.mod`)
+	ops.GoSumFile = filepath.Join(ops.HomeDir, `go.sum`)
+
 	ops.GO111MODULE = `on`
 	ops.GOSUMDB = `off`
 	ops.GOEXE = goexe()
-	ops.GOBIN = ops.TEMP
-	ops.GOMODCACHE = ops.TEMP
-	ops.GOCACHE = ops.TEMP
-	ops.GOTMPDIR = ops.TEMP
+	ops.GOBIN = ops.TempDir
+	ops.GOMODCACHE = ops.TempDir
+	ops.GOCACHE = ops.TempDir
+	ops.GOTMPDIR = ops.TempDir
 
-	ops.GoModFile = filepath.Join(ops.HOME, `go.mod`)
-	ops.GoSumFile = filepath.Join(ops.HOME, `go.sum`)
+}
+
+func work() string {
+	cwd, _ := os.Getwd()
+	if cwd == "" {
+		cwd = "./"
+	}
+	cwd, _ = filepath.Abs(cwd)
+	return cwd
 }
 
 func home() string {
@@ -124,4 +113,5 @@ func root(path string) string {
 	return ret
 }
 
-var program = os.Args[0] // 批复程序名称,避免有人窜改os.args
+// 获取程序名称,避免有人窜改os.args
+var program = os.Args[0]

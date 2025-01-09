@@ -1,8 +1,6 @@
 package protogen
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -69,7 +67,6 @@ type Context struct {
 	SystemOptions
 	CustomOptions
 	flagset *flag.FlagSet
-	plugins []*Plugin
 	profile string
 	version string
 	base    bool
@@ -77,11 +74,11 @@ type Context struct {
 
 func (ctx *Context) Close() {
 	// 在Mac机型出现无权删除的情况!
-	filepath.Walk(ctx.TEMP, func(path string, info fs.FileInfo, err error) error {
+	filepath.Walk(ctx.TempDir, func(path string, info fs.FileInfo, err error) error {
 		os.Chmod(path, fs.ModePerm)
 		return nil
 	})
-	os.RemoveAll(ctx.TEMP)
+	os.RemoveAll(ctx.TempDir)
 	os.Chmod(ctx.GoModFile, fs.ModePerm)
 	os.Remove(ctx.GoModFile)
 	os.Chmod(ctx.GoSumFile, fs.ModePerm)
@@ -90,12 +87,12 @@ func (ctx *Context) Close() {
 
 func (ctx *Context) GoGet(module string, src bool) {
 
-	if !Exists(ctx.HOME) {
-		os.MkdirAll(ctx.HOME, 0755)
+	if !Exists(ctx.HomeDir) {
+		os.MkdirAll(ctx.HomeDir, 0755)
 	}
 
-	if !Exists(ctx.TEMP) {
-		os.MkdirAll(ctx.TEMP, fs.ModePerm)
+	if !Exists(ctx.TempDir) {
+		os.MkdirAll(ctx.TempDir, fs.ModePerm)
 	}
 
 	sub := `install`
@@ -117,8 +114,8 @@ func (ctx *Context) GoGet(module string, src bool) {
 		`GOMODCACHE=`,
 		`GOCACHE=`,
 		`GOTMPDIR=`,
-		`GOPROXY=`,
-		`GOPRIVATE=`,
+		`GoProxy=`,
+		`GoPrivate=`,
 	)...)
 	cmd.Env = append(cmd.Env,
 		`GO111MODULE=`+ctx.GO111MODULE,
@@ -128,10 +125,10 @@ func (ctx *Context) GoGet(module string, src bool) {
 		`GOMODCACHE=`+ctx.GOMODCACHE,
 		`GOCACHE=`+ctx.GOCACHE,
 		`GOTMPDIR=`+ctx.GOTMPDIR,
-		`GOPROXY=`+ctx.GOPROXY,
-		`GOPRIVATE=`+ctx.GOPRIVATE,
+		`GoProxy=`+ctx.GoProxy,
+		`GoPrivate=`+ctx.GoPrivate,
 	)
-	cmd.Dir = ctx.HOME
+	cmd.Dir = ctx.HomeDir
 	if err := cmd.Run(); err != nil {
 		PrintExit("go get %v error: %v", module, err)
 	}
@@ -142,21 +139,21 @@ func (ctx *Context) GoGet(module string, src bool) {
 	}
 
 	if src {
-		newBin := filepath.Join(ctx.TEMP, name+ctx.GOEXE)
+		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
 		if !Exists(newBin) {
 			PrintExit("go get %v failed", module)
 		}
-		oldBin := filepath.Join(ctx.HOME, name+ctx.GOEXE)
+		oldBin := filepath.Join(ctx.HomeDir, name+ctx.GOEXE)
 		if Exists(oldBin) {
 			os.Remove(oldBin)
 		}
 		os.Rename(newBin, oldBin)
 	} else {
-		newSrc := RealPath(ctx.TEMP, module)
+		newSrc := RealPath(ctx.TempDir, module)
 		if newSrc == "" {
 			PrintExit("go get %v failed", module)
 		}
-		oldSrc := filepath.Join(ctx.HOME, name)
+		oldSrc := filepath.Join(ctx.HomeDir, name)
 		if Exists(oldSrc) {
 			filepath.Walk(oldSrc, func(path string, info fs.FileInfo, err error) error {
 				os.Chmod(path, fs.ModePerm)
@@ -215,7 +212,7 @@ func (ctx *Context) HttpGetProtoc(module string) {
 		sysARCH = `s390x`
 	}
 
-	furl := ctx.CENTRAL + `/com/google/protobuf/protoc/` + version + `/protoc-` + version + `-` + sysOS + `-` + sysARCH + `.exe`
+	furl := ctx.Centeral + `/com/google/protobuf/protoc/` + version + `/protoc-` + version + `-` + sysOS + `-` + sysARCH + `.exe`
 	rsp, err := http.Get(furl)
 	if err != nil {
 		PrintExit(`http get %v error: %v`, name, err)
@@ -227,7 +224,7 @@ func (ctx *Context) HttpGetProtoc(module string) {
 		PrintExit(`http get %v error: %v`, name, err)
 	}
 
-	err = os.WriteFile(filepath.Join(ctx.HOME, name+ctx.GOEXE), data, 0755)
+	err = os.WriteFile(filepath.Join(ctx.HomeDir, name+ctx.GOEXE), data, 0755)
 	if err != nil {
 		PrintExit(`http get %v error: %v`, name, err)
 	}
@@ -246,54 +243,20 @@ func (ctx *Context) PrintVersion() {
 	fmt.Fprintln(out, `version:`, Version)
 	fmt.Fprintln(out, `Plugins:`)
 	width := 0
-	for _, p := range ctx.GetPlugins() {
+	for _, p := range Plugins {
 		if n := len(p.Name); n > width {
 			width = n
 		}
 	}
 	format := `%-` + strconv.Itoa(width) + `s`
-	for _, p := range ctx.GetPlugins() {
+	for _, p := range Plugins {
 		fmt.Fprintln(out, `  `, fmt.Sprintf(format, p.Name), p.Version)
 	}
 	fmt.Println(out.String())
 }
 
-func (ctx *Context) GetPlugins() []*Plugin {
-	if ctx.plugins == nil {
-		in := bufio.NewScanner(bytes.NewReader(ctx.GetConfig()))
-		for in.Scan() {
-			line := strings.TrimSpace(in.Text())
-			if at := strings.IndexByte(line, '@'); at != -1 {
-				plugin := &Plugin{
-					Name:    filepath.Base(line[:at]),
-					Version: line[at+1:],
-					Module:  line,
-				}
-				// 版本过滤
-				if mode, ok := Plugins[plugin.Name]; ok {
-					plugin.Mode = mode
-					ctx.plugins = append(ctx.plugins, plugin)
-				}
-			}
-		}
-	}
-	return ctx.plugins
-}
-
-func (ctx *Context) GetConfig() []byte {
-	data, _ := os.ReadFile(filepath.Join(ctx.HOME, ctx.version))
-	if len(data) == 0 {
-		ctx.GoGet(Profile, Cnf)
-		data, _ = os.ReadFile(filepath.Join(ctx.HOME, ctx.version))
-		if len(data) == 0 {
-			PrintExit("missing config")
-		}
-	}
-	return data
-}
-
 func (ctx *Context) GetPlugin(name string) *Plugin {
-	for _, p := range ctx.GetPlugins() {
+	for _, p := range Plugins {
 		if strings.EqualFold(p.Name, name) {
 			return p
 		}
@@ -301,53 +264,23 @@ func (ctx *Context) GetPlugin(name string) *Plugin {
 	return nil
 }
 
-func (ctx *Context) UpdatePlugins() {
-	// 获取配置
-	ctx.GoGet(Profile, Cnf)
-
-	// 清理目录
-	list, _ := os.ReadDir(ctx.HOME)
-	for _, item := range list {
-		// 排除掉profile
-		if ctx.version == item.Name() {
+func (ctx *Context) EnsurePlugins(update bool) {
+	for _, p := range Plugins {
+		name := p.Name
+		if p.Mode != GoSrc {
+			name += ctx.GOEXE
+		}
+		// 非强制更新忽略已存在的插件
+		if !update && Exists(filepath.Join(ctx.HomeDir, name)) {
 			continue
 		}
-		itemPath := filepath.Join(ctx.HOME, item.Name())
-		if item.IsDir() {
-			filepath.Walk(itemPath, func(path string, info fs.FileInfo, err error) error {
-				os.Chmod(path, fs.ModePerm)
-				return nil
-			})
-			os.RemoveAll(itemPath)
-		} else {
-			os.Chmod(itemPath, fs.ModePerm)
-			os.Remove(itemPath)
-		}
-	}
-
-	// 重新安装
-	for _, p := range ctx.GetPlugins() {
-		if p.Mode == Protoc {
+		switch p.Mode {
+		case Protoc:
 			ctx.HttpGetProtoc(p.Module)
-		} else {
-			ctx.GoGet(p.Module, p.Mode)
-		}
-	}
-}
-
-func (ctx *Context) EnsurePlugins() {
-	for k := range Plugins {
-		if Exists(filepath.Join(ctx.HOME, k+ctx.GOEXE)) {
-			continue
-		}
-		if p := ctx.GetPlugin(k); p != nil {
-			if p.Mode == Protoc {
-				ctx.HttpGetProtoc(p.Module)
-			} else {
-				ctx.GoGet(p.Module, p.Mode)
-			}
-		} else {
-			PrintWarn(`download plugin %v failed`, k)
+		case GoSrc:
+			ctx.GoGet(p.Module, true)
+		case GoBin:
+			ctx.GoGet(p.Module, false)
 		}
 	}
 }
@@ -367,11 +300,11 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 	var args []string
 
 	if ctx.base {
-		args = append(args, `--plugin=protoc-gen-go=`+filepath.Join(ctx.HOME, `protoc-gen-go`))
+		args = append(args, `--plugin=protoc-gen-go=`+filepath.Join(ctx.HomeDir, `protoc-gen-go`))
 		args = append(args, `--go_out=`+ctx.RootPath)
 	}
 	if ctx.Grpc || ctx.GrpcV2 {
-		args = append(args, `--plugin=protoc-gen-go-grpc=`+filepath.Join(ctx.HOME, `protoc-gen-go-grpc`))
+		args = append(args, `--plugin=protoc-gen-go-grpc=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-grpc`))
 		if ctx.GrpcV2 {
 			args = append(args, `--go-grpc_out=require_unimplemented_servers=true:`+ctx.RootPath)
 		} else {
@@ -379,37 +312,37 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 		}
 	}
 	if ctx.ProtoApi {
-		args = append(args, `--plugin=protoc-gen-go-protoapi=`+filepath.Join(ctx.HOME, `protoc-gen-go-protoapi`))
+		args = append(args, `--plugin=protoc-gen-go-protoapi=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-protoapi`))
 		args = append(args, `--go-protoapi_out=`+ctx.RootPath)
 	}
 	if ctx.OpenApi {
-		args = append(args, `--plugin=protoc-gen-go-openapi=`+filepath.Join(ctx.HOME, `protoc-gen-go-openapi`))
+		args = append(args, `--plugin=protoc-gen-go-openapi=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-openapi`))
 		args = append(args, `--go-openapi_out=`+ctx.RootPath)
 	}
 	if ctx.Validator {
-		args = append(args, `--plugin=protoc-gen-go-validator=`+filepath.Join(ctx.HOME, `protoc-gen-go-validator`))
+		args = append(args, `--plugin=protoc-gen-go-validator=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-validator`))
 		args = append(args, `--go-validator_out=`+ctx.RootPath)
 	}
 	if ctx.Json {
-		args = append(args, `--plugin=protoc-gen-go-json=`+filepath.Join(ctx.HOME, `protoc-gen-go-json`))
+		args = append(args, `--plugin=protoc-gen-go-json=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-json`))
 		args = append(args, `--go-json_out=`+ctx.RootPath)
 	}
 	if ctx.Bson {
-		args = append(args, `--plugin=protoc-gen-go-bson=`+filepath.Join(ctx.HOME, `protoc-gen-go-bson`))
+		args = append(args, `--plugin=protoc-gen-go-bson=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-bson`))
 		args = append(args, `--go-bson_out=`+ctx.RootPath)
 	}
 	if ctx.Sqlx {
-		args = append(args, `--plugin=protoc-gen-go-sqlx=`+filepath.Join(ctx.HOME, `protoc-gen-go-sqlx`))
+		args = append(args, `--plugin=protoc-gen-go-sqlx=`+filepath.Join(ctx.HomeDir, `protoc-gen-go-sqlx`))
 		args = append(args, `--go-sqlx_out=`+ctx.RootPath)
 	}
 
-	args = append(args, `--proto_path=`+filepath.Join(ctx.HOME, `include`))
+	args = append(args, `--proto_path=`+filepath.Join(ctx.HomeDir, `include`))
 	for _, path := range protoPath {
 		args = append(args, `--proto_path=`+path)
 	}
 
 	PrintInfo(`build %s`, protoFile)
-	protoc := filepath.Join(ctx.HOME, `protoc`)
+	protoc := filepath.Join(ctx.HomeDir, `protoc`)
 	cmd := exec.Command(protoc, args...)
 	if ctx.Debug {
 		fmt.Fprintln(os.Stdout, protoc, strings.Join(args, ` `)) // 打印命令

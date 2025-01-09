@@ -29,14 +29,6 @@ func Env(key string, def string) string {
 	return def
 }
 
-func Cwd() string {
-	cwd, _ := os.Getwd()
-	if cwd == "" {
-		cwd = "./"
-	}
-	return cwd
-}
-
 func Exists(path string) bool {
 	sta, err := os.Stat(path)
 	return sta != nil || os.IsExist(err)

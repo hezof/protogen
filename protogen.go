@@ -15,21 +15,20 @@ const (
 func Main(args []string) {
 	ctx := NewContext(Profile, Version, args)
 	switch {
-	case ctx.Help:
-		ctx.PrintUsage()
 	case ctx.Version:
 		ctx.PrintVersion()
 	case ctx.Update:
-		ctx.UpdatePlugins()
+		ctx.EnsurePlugins(true)
 	case len(ctx.flagset.Args()) == 0:
 		ctx.PrintUsage()
 	default:
-		ctx.EnsurePlugins()
+		ctx.EnsurePlugins(false)
 
 		protoPaths := make(map[string]any)
 		protoFiles := make(map[string]any)
 
-		protoPaths[ctx.RootPath] = nil
+		protoPaths[ctx.WorkDir] = nil
+		protoPaths[ctx.IncludeDir] = nil
 		for _, p := range strings.Split(ctx.ProtoPath, `,`) {
 			p = strings.TrimSpace(p)
 			if p != `` {

@@ -1,11 +1,11 @@
 package protogen
 
-var Plugins = []Plugin{
+var Plugins = []*Plugin{
 	{
 		Mode:    Protoc,
 		Name:    "protoc",
 		Module:  "com/google/protobuf/protoc",
-		Version: "v3.21.9",
+		Version: "v3.21.12", // debian 12仓库版本
 	},
 	{
 		Mode:    GoSrc,
