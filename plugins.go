@@ -31,13 +31,13 @@ var Plugins = []*Plugin{
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go",
-		Module:  "google.golang.org/protobuf/plugin/protoc-gen-go",
+		Module:  "google.golang.org/protobuf/cmd/protoc-gen-go",
 		Version: "v1.36.2",
 	},
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go-grpc",
-		Module:  "google.golang.org/grpc/plugin/protoc-gen-go-grpc",
+		Module:  "google.golang.org/grpc/cmd/protoc-gen-go-grpc",
 		Version: "v1.5.1",
 	},
 }
