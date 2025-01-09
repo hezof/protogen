@@ -285,9 +285,15 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 
 func (ctx *Context) checkSelfUpdate() bool {
 	if __self_update__ == os.Args[0] {
-		os.Chmod(os.Args[1], os.ModePerm)
-		os.Remove(os.Args[1])
-		os.Rename(os.Args[2], os.Args[1])
+		err := os.Chmod(os.Args[1], os.ModePerm)
+		err = os.Remove(os.Args[1])
+		if err != nil {
+			PrintExit("self update error: %v", err)
+		}
+		err = os.Rename(os.Args[2], os.Args[1])
+		if err != nil {
+			PrintExit("self update error: %v", err)
+		}
 		return true
 	}
 	return false
