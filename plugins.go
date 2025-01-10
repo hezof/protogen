@@ -54,10 +54,3 @@ type Plugin struct {
 	Module  string
 	Version string
 }
-
-func (p *Plugin) FullName(ctx *Context) string {
-	if p.Mode != GoGetSrc {
-		return p.Name + `_` + p.Version + ctx.GOEXE
-	}
-	return p.Name + `_` + p.Version
-}

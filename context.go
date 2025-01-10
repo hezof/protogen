@@ -113,7 +113,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		if !Exists(newBin) {
 			PrintExit("go get %v failed", module)
 		}
-		oldBin := filepath.Join(ctx.HomeDir, name+ctx.GOEXE)
+		oldBin := filepath.Join(ctx.HomeDir, name+version+ctx.GOEXE)
 		if Exists(oldBin) {
 			os.Chmod(oldBin, fs.ModePerm)
 			os.Remove(oldBin)
@@ -124,7 +124,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		if newSrc == "" {
 			PrintExit("go get %v failed", module)
 		}
-		oldSrc := filepath.Join(ctx.HomeDir, name)
+		oldSrc := filepath.Join(ctx.HomeDir, name+version)
 		if Exists(oldSrc) {
 			filepath.Walk(oldSrc, func(path string, info fs.FileInfo, err error) error {
 				os.Chmod(path, fs.ModePerm)
@@ -187,7 +187,7 @@ func (ctx *Context) HttpGetProtoc(config *Config, module, version string) {
 		PrintExit(`http get %v error: %v`, name, err)
 	}
 
-	err = os.WriteFile(filepath.Join(ctx.HomeDir, name+`_`+version+ctx.GOEXE), data, 0755)
+	err = os.WriteFile(filepath.Join(ctx.HomeDir, name+version+ctx.GOEXE), data, 0755)
 	if err != nil {
 		PrintExit(`http get %v error: %v`, name, err)
 	}
@@ -259,23 +259,22 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 				return nil
 			})
 			os.RemoveAll(ctx.HomeDir)
-			os.Exit(0)
 		}
+		os.Exit(0)
 	}
 
 	for _, p := range Plugins {
-		name := p.Name + `_` + p.Version
+		name := p.Name + p.Version
 		if p.Mode == GoGetBin {
 			name += ctx.GOEXE
 		}
 		// 非强制更新忽略已存在的插件
-		if !force && Exists(filepath.Join(ctx.HomeDir, name)) {
-			continue
-		}
-		if p.Mode == HttpGetProtoc {
-			ctx.HttpGetProtoc(c, p.Module, p.Version)
-		} else {
-			ctx.GoGet(c, p.Module, p.Version, p.Mode)
+		if force || !Exists(filepath.Join(ctx.HomeDir, name)) {
+			if p.Mode == HttpGetProtoc {
+				ctx.HttpGetProtoc(c, p.Module, p.Version)
+			} else {
+				ctx.GoGet(c, p.Module, p.Version, p.Mode)
+			}
 		}
 	}
 }
