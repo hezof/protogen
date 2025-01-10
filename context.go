@@ -229,10 +229,8 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 		ctx.GoGet(c, MODULE, c.VERSION, GoGetProtogen)
 		ctx.Close()
 		_, err := os.StartProcess(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args, &os.ProcAttr{
-			Dir: ctx.HomeDir,
-			Env: []string{
-				__self_update_pid__ + `=` + strconv.Itoa(os.Getpid()),
-			},
+			Env:   []string{__self_update_pid__ + `=` + strconv.Itoa(os.Getpid())},
+			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 		})
 		if err != nil {
 			PrintExit("self update error: %v", err)
