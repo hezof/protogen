@@ -1,17 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	"syscall"
 	"testing"
 )
 
 func TestMainCase(t *testing.T) {
-	args := []string{
-		"--grpc",
-		"--root_path",
-		"D:\\Workspace\\hezof\\github.com\\hezof\\protogen\\test",
-		"protoapi.proto",
+	pid := os.Getpid()
+	prc, err := os.FindProcess(pid)
+	if err != nil {
+		panic(err)
 	}
-	os.StartProcess()
+	fmt.Println(prc.Pid)
 }

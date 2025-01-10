@@ -15,10 +15,7 @@ func main() {
 	ctx := NewContext(os.Args[1:])
 	defer ctx.Close()
 
-	if ctx.checkSelfUpdate() {
-		PrintInfo("self update successfully")
-		os.Exit(0)
-	}
+	ctx.checkSelfUpdate()
 
 	switch {
 	case ctx.Help:

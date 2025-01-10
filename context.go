@@ -104,7 +104,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		}
 		oldBin := os.Args[0] // 应用程序路径
 		if Exists(oldBin) {
-			_, err := os.StartProcess(newBin, []string{__self_update__, oldBin, newBin}, &os.ProcAttr{
+			_, err := os.StartProcess(newBin, []string{__self_update__, strconv.Itoa(os.Getpid()), oldBin, newBin}, &os.ProcAttr{
 				Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 			})
 			if err != nil {
@@ -285,21 +285,33 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 	}
 }
 
-func (ctx *Context) checkSelfUpdate() bool {
+func (ctx *Context) checkSelfUpdate() {
 	if __self_update__ == os.Args[0] {
-		time.Sleep(5 * time.Second) // 确保父进程退出
-		err := os.Chmod(os.Args[1], os.ModePerm)
-		err = os.Remove(os.Args[1])
+
+		ppid, _ := strconv.Atoi(os.Args[1])
+		oldBin := os.Args[2]
+		newBin := os.Args[3]
+
+		for {
+			// 轮询父进程ID是否存在
+			_, err := os.FindProcess(ppid)
+			if err != nil {
+				break
+			} else {
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+
+		os.Chmod(oldBin, os.ModePerm)
+		os.Remove(newBin)
+		err := os.Rename(newBin, oldBin)
 		if err != nil {
 			PrintExit("self update error: %v", err)
+		} else {
+			PrintInfo("self update successfully")
 		}
-		err = os.Rename(os.Args[2], os.Args[1])
-		if err != nil {
-			PrintExit("self update error: %v", err)
-		}
-		return true
+		os.Exit(0)
 	}
-	return false
 }
 
 const __self_update__ = `__self_update__`
