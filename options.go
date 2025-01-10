@@ -1,4 +1,4 @@
-package protogen
+package main
 
 import (
 	"fmt"
@@ -42,7 +42,7 @@ func initCustomOptions(ops *Context) {
 	ops.flagset.BoolVar(&ops.Help, `help`, false, `打印帮助`)
 	ops.flagset.BoolVar(&ops.Debug, `debug`, false, `打印调试`)
 	ops.flagset.BoolVar(&ops.Update, `update`, false, `更新插件`)
-	ops.flagset.StringVar(&ops.Config, `config`, ``, fmt.Sprintf(`配置变量.默认"VERSION=%v;GOPROXY=%v;GOPRIVATE=%v;MAVEN_CENTRAL=%v"`, Version, `https://goproxy.cn`, `*.net,*.cn`, `https://maven.aliyun.com/repository/central`))
+	ops.flagset.StringVar(&ops.Config, `config`, ``, fmt.Sprintf(`配置变量.默认"VERSION=%v;GOPROXY=%v;GOPRIVATE=%v;MAVEN_CENTRAL=%v"`, VERSION, `https://goproxy.cn`, `*.net,*.cn`, `https://maven.aliyun.com/repository/central`))
 	ops.flagset.StringVar(&ops.GoOut, `go_out`, work(), `GO输出目录,默认当前目录`)
 	ops.flagset.StringVar(&ops.ProtoBase, `proto_base`, work(), `PB基准目录,默认当前目录`)
 	ops.flagset.StringVar(&ops.ProtoPath, `proto_path`, ``, `PB查找目录[逗号分隔]`)
@@ -67,7 +67,7 @@ func initSystemOptions(ops *Context) {
 }
 
 type Config struct {
-	VERSION       string // protogen版本, 默认: Version
+	VERSION       string // protogen版本, 默认: VERSION
 	GOPROXY       string // go代理仓库, 默认: https://goproxy.cn
 	GOPRIVATE     string // go私有代理, 默认: *.net,*.cn
 	MAVEN_CENTRAL string // maven中央仓库, 默认: https://maven.aliyun.com/repository/central
@@ -76,7 +76,7 @@ type Config struct {
 func parseConfig(s string) *Config {
 	c := new(Config)
 	// 默认值
-	c.VERSION = Version
+	c.VERSION = VERSION
 	c.GOPROXY = `https://goproxy.cn`
 	c.GOPRIVATE = `*.net,*.cn`
 	c.MAVEN_CENTRAL = `https://maven.aliyun.com/repository/central`

@@ -1,4 +1,4 @@
-package protogen
+package main
 
 import (
 	"flag"
@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func NewContext(args []string) *Context {
@@ -96,6 +97,17 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 
 	name := filepath.Base(module) // base包含@version部分
 	switch mode {
+	case GoGetProtogen:
+		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
+		if !Exists(newBin) {
+			PrintExit("go get %v failed", module)
+		}
+		oldBin := filepath.Join(ctx.HomeDir, name+ctx.GOEXE)
+		if Exists(oldBin) {
+			os.Chmod(oldBin, fs.ModePerm)
+			os.Remove(oldBin)
+		}
+		os.Rename(newBin, oldBin)
 	case GoGetBin:
 		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
 		if !Exists(newBin) {
@@ -191,7 +203,8 @@ func (ctx *Context) PrintHelp() {
 		}
 	}
 	format := `%-` + strconv.Itoa(width) + `s`
-	fmt.Fprintln(out, `Build:`, Version)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, `Build:`, VERSION)
 	for _, p := range Plugins {
 		fmt.Fprintln(out, ` `, fmt.Sprintf(format, p.Name), p.Version)
 	}
@@ -202,7 +215,53 @@ func (ctx *Context) PrintHelp() {
 	fmt.Println(out.String())
 }
 
+const __self_update_pid__ = `__self_update_pid__` // 指定父进程PID作为值
+
 func (ctx *Context) UpdatePlugin(c *Config, force bool) {
+
+	/*
+		自我升级过程:
+		1. VERSION不同. GoGet最新版本并移至$HomeDir/protogen, 否则无法删除$HomeDir/tmp目录. 启动子进程!
+		2. 子进程使用主进程相同的args(必须相同), 否则os.Args[0]会影响$HomeDir. 等待ppid结束才移动protogen
+		3. 清理其它插件后, 等待下次延迟加载.
+	*/
+	if c.VERSION != VERSION {
+		ctx.GoGet(c, MODULE, c.VERSION, GoGetProtogen)
+		ctx.Close()
+		_, err := os.StartProcess(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args, &os.ProcAttr{
+			Dir: ctx.HomeDir,
+			Env: []string{
+				__self_update_pid__ + `=` + strconv.Itoa(os.Getpid()),
+			},
+		})
+		if err != nil {
+			PrintExit("self update error: %v", err)
+		}
+		os.Exit(0)
+	} else if spid := os.Getenv(__self_update_pid__); spid != `` {
+		// 升级进程
+		if pid, _ := strconv.Atoi(spid); pid > 0 {
+			// 等待父进程结束,否则无法移动.
+			for {
+				if _, err := os.FindProcess(pid); err != nil {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			_ = os.Chmod(os.Args[0], os.ModePerm)
+			_ = os.Remove(os.Args[0])
+			if err := os.Rename(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args[0]); err != nil {
+				PrintExit("self update error: %v", err)
+			}
+			// 清理.protogen
+			filepath.Walk(ctx.HomeDir, func(path string, info fs.FileInfo, err error) error {
+				os.Chmod(path, os.ModePerm)
+				return nil
+			})
+			os.RemoveAll(ctx.HomeDir)
+			os.Exit(0)
+		}
+	}
 
 	for _, p := range Plugins {
 		name := p.Name + `_` + p.Version

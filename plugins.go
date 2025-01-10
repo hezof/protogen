@@ -1,4 +1,4 @@
-package protogen
+package main
 
 var Plugins = []*Plugin{
 	{
@@ -44,7 +44,8 @@ type Mode uint8
 const (
 	GoGetBin      Mode = 0
 	GoGetSrc      Mode = 1
-	HttpGetProtoc Mode = 2
+	GoGetProtogen Mode = 2
+	HttpGetProtoc Mode = 3
 )
 
 type Plugin struct {
@@ -52,4 +53,11 @@ type Plugin struct {
 	Name    string
 	Module  string
 	Version string
+}
+
+func (p *Plugin) FullName(ctx *Context) string {
+	if p.Mode != GoGetSrc {
+		return p.Name + `_` + p.Version + ctx.GOEXE
+	}
+	return p.Name + `_` + p.Version
 }

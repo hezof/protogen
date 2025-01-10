@@ -1,4 +1,4 @@
-package protogen
+package main
 
 import (
 	"io/fs"
@@ -7,11 +7,12 @@ import (
 	"strings"
 )
 
-var Version = `v0.5.5`
+const MODULE = `github.com/hezof/protogen`
+const VERSION = `v0.5.5`
 
-func Main(args []string) {
+func main() {
 
-	ctx := NewContext()
+	ctx := NewContext(os.Args[1:])
 	defer ctx.Close()
 
 	switch {

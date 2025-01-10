@@ -1,4 +1,4 @@
-package protogen
+package main
 
 import (
 	"fmt"
