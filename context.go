@@ -1,4 +1,4 @@
-package main
+package protogen
 
 import (
 	"flag"
@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func NewContext(args []string) *Context {
@@ -97,21 +96,6 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 
 	name := filepath.Base(module) // base包含@version部分
 	switch mode {
-	case GoGetProtogen:
-		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
-		if !Exists(newBin) {
-			PrintExit("go get %v failed", module)
-		}
-		oldBin := os.Args[0] // 应用程序路径
-		if Exists(oldBin) {
-			_, err := os.StartProcess(newBin, []string{__self_update__, strconv.Itoa(os.Getpid()), oldBin, newBin}, &os.ProcAttr{
-				Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-			})
-			if err != nil {
-				PrintExit("self update error: %v", err)
-			}
-			os.Exit(0)
-		}
 	case GoGetBin:
 		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
 		if !Exists(newBin) {
@@ -220,11 +204,6 @@ func (ctx *Context) PrintHelp() {
 
 func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 
-	if Version != c.VERSION {
-		ctx.GoGet(c, Module, c.VERSION, GoGetProtogen)
-		os.Exit(0)
-	}
-
 	for _, p := range Plugins {
 		name := p.Name + `_` + p.Version
 		if p.Mode == GoGetBin {
@@ -284,34 +263,3 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 		PrintExit(`build error: %+v`, err)
 	}
 }
-
-func (ctx *Context) checkSelfUpdate() {
-	if __self_update__ == os.Args[0] {
-
-		ppid, _ := strconv.Atoi(os.Args[1])
-		oldBin := os.Args[2]
-		newBin := os.Args[3]
-
-		for {
-			// 轮询父进程ID是否存在
-			_, err := os.FindProcess(ppid)
-			if err != nil {
-				break
-			} else {
-				time.Sleep(100 * time.Millisecond)
-			}
-		}
-
-		os.Chmod(oldBin, os.ModePerm)
-		os.Remove(newBin)
-		err := os.Rename(newBin, oldBin)
-		if err != nil {
-			PrintExit("self update error: %v", err)
-		} else {
-			PrintInfo("self update successfully")
-		}
-		os.Exit(0)
-	}
-}
-
-const __self_update__ = `__self_update__`

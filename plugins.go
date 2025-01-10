@@ -1,4 +1,4 @@
-package main
+package protogen
 
 var Plugins = []*Plugin{
 	{
@@ -44,8 +44,7 @@ type Mode uint8
 const (
 	GoGetBin      Mode = 0
 	GoGetSrc      Mode = 1
-	GoGetProtogen Mode = 2
-	HttpGetProtoc Mode = 3
+	HttpGetProtoc Mode = 2
 )
 
 type Plugin struct {

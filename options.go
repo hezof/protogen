@@ -1,4 +1,4 @@
-package main
+package protogen
 
 import (
 	"fmt"
@@ -110,16 +110,22 @@ func work() string {
 	return cwd
 }
 
+const PROTOGEN_HOME_ENV = `PROTOGEN_HOME`
+
 func home() string {
-	loc, err := exec.LookPath(program)
-	if err != nil {
-		loc = program
+	val := os.Getenv(PROTOGEN_HOME_ENV)
+	if val == `` {
+		loc, err := exec.LookPath(os.Args[0])
+		if err != nil {
+			loc = os.Args[0]
+		}
+		abs, err := filepath.Abs(loc)
+		if err != nil {
+			abs = loc
+		}
+		val = filepath.Join(filepath.Dir(abs), `.protogen`)
 	}
-	abs, err := filepath.Abs(loc)
-	if err != nil {
-		abs = loc
-	}
-	return filepath.Join(filepath.Dir(abs), `.protogen`)
+	return val
 }
 
 func goexe() string {
@@ -145,6 +151,3 @@ func root(path string) string {
 	}
 	return ret
 }
-
-// 获取程序名称,避免有人窜改os.args
-var program = os.Args[0]
