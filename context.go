@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func NewContext(args []string) *Context {
@@ -109,6 +110,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 			if err != nil {
 				PrintExit("self update error: %v", err)
 			}
+			os.Exit(0)
 		}
 	case GoGetBin:
 		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
@@ -285,6 +287,7 @@ func (ctx *Context) generate(protoPath []string, protoFile string) {
 
 func (ctx *Context) checkSelfUpdate() bool {
 	if __self_update__ == os.Args[0] {
+		time.Sleep(5 * time.Second) // 确保父进程退出
 		err := os.Chmod(os.Args[1], os.ModePerm)
 		err = os.Remove(os.Args[1])
 		if err != nil {
