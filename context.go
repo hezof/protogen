@@ -177,7 +177,7 @@ func (ctx *Context) HttpGetProtoc(config *Config, module, version string) {
 		PrintExit(`http get %v error: %v`, name, err)
 	}
 
-	err = os.WriteFile(filepath.Join(ctx.HomeDir, name+version+ctx.GOEXE), data, 0755)
+	err = os.WriteFile(filepath.Join(ctx.HomeDir, name+`_`+version[1:]+ctx.GOEXE), data, 0755)
 	if err != nil {
 		PrintExit(`http get %v error: %v`, name, err)
 	}
