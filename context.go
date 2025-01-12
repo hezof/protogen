@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -240,10 +241,14 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 			if pid, _ := strconv.Atoi(spid); pid > 0 {
 				// 等待父进程结束,否则无法移动.
 				for {
-					if _, err := os.FindProcess(pid); err != nil {
+					prc, err := os.FindProcess(pid)
+					if err != nil {
 						break
 					}
-					PrintInfo("find process..." + spid)
+					err = prc.Signal(syscall.Signal(0))
+					if err != nil {
+						break
+					}
 					time.Sleep(100 * time.Millisecond)
 				}
 				oldBin := Lookup(os.Args[0])
