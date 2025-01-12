@@ -39,13 +39,21 @@ var Plugins = []*Plugin{
 	},
 }
 
+func IncludeFullName() string {
+	for _, p := range Plugins {
+		if p.Name == `include` {
+			return p.Name + p.Version
+		}
+	}
+	return ``
+}
+
 type Mode uint8
 
 const (
 	GoGetBin      Mode = 0
 	GoGetSrc      Mode = 1
-	GoGetProtogen Mode = 2
-	HttpGetProtoc Mode = 3
+	HttpGetProtoc Mode = 2
 )
 
 type Plugin struct {

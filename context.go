@@ -97,28 +97,18 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 
 	name := filepath.Base(module) // base包含@version部分
 	switch mode {
-	case GoGetProtogen:
-		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
-		if !Exists(newBin) {
-			PrintExit("go get %v failed", module)
-		}
-		oldBin := filepath.Join(ctx.HomeDir, name+ctx.GOEXE)
-		if Exists(oldBin) {
-			os.Chmod(oldBin, fs.ModePerm)
-			os.Remove(oldBin)
-		}
-		os.Rename(newBin, oldBin)
 	case GoGetBin:
 		newBin := filepath.Join(ctx.TempDir, name+ctx.GOEXE)
 		if !Exists(newBin) {
 			PrintExit("go get %v failed", module)
 		}
 		oldBin := filepath.Join(ctx.HomeDir, name+version+ctx.GOEXE)
-		if Exists(oldBin) {
-			os.Chmod(oldBin, fs.ModePerm)
-			os.Remove(oldBin)
+		_ = os.Chmod(oldBin, os.ModePerm)
+		_ = os.Remove(oldBin)
+		err := os.Rename(newBin, oldBin)
+		if err != nil {
+			PrintExit("go get %v error: %v", module, err)
 		}
-		os.Rename(newBin, oldBin)
 	case GoGetSrc:
 		newSrc := RealPath(ctx.TempDir, module)
 		if newSrc == "" {
@@ -225,53 +215,55 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 		2. 子进程使用主进程相同的args(必须相同), 否则os.Args[0]会影响$HomeDir. 等待ppid结束才移动protogen
 		3. 清理其它插件后, 等待下次延迟加载.
 	*/
-	if c.VERSION != VERSION {
-		ctx.GoGet(c, MODULE, c.VERSION, GoGetProtogen)
-		ctx.Close()
-		_, err := os.StartProcess(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args, &os.ProcAttr{
-			Env:   []string{__self_update_pid__ + `=` + strconv.Itoa(os.Getpid())},
+	if c.VERSION == VERSION {
+		// 先更新插件
+		for _, p := range Plugins {
+			name := p.Name + p.Version
+			if p.Mode == GoGetBin {
+				name += ctx.GOEXE
+			}
+			// 非强制更新忽略已存在的插件
+			if force || !Exists(filepath.Join(ctx.HomeDir, name)) {
+				if p.Mode == HttpGetProtoc {
+					ctx.HttpGetProtoc(c, p.Module, p.Version)
+				} else {
+					ctx.GoGet(c, p.Module, p.Version, p.Mode)
+				}
+			}
+		}
+		// 再更新自己
+		if spid := os.Getenv(__self_update_pid__); spid != `` {
+			// 升级进程
+			if pid, _ := strconv.Atoi(spid); pid > 0 {
+				// 等待父进程结束,否则无法移动.
+				for {
+					if _, err := os.FindProcess(pid); err != nil {
+						break
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+				_ = os.Chmod(os.Args[0], os.ModePerm)
+				_ = os.Remove(os.Args[0])
+				if err := os.Rename(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args[0]); err != nil {
+					PrintExit("self update error: %v", err)
+				}
+				// 清理.protogen
+				filepath.Walk(ctx.HomeDir, func(path string, info fs.FileInfo, err error) error {
+					os.Chmod(path, os.ModePerm)
+					return nil
+				})
+				os.RemoveAll(ctx.HomeDir)
+			}
+		}
+
+	} else {
+		ctx.GoGet(c, MODULE, c.VERSION, GoGetBin)
+		_, err := os.StartProcess(filepath.Join(ctx.HomeDir, filepath.Base(MODULE)+c.VERSION+ctx.GOEXE), os.Args, &os.ProcAttr{
+			Env:   append(os.Environ(), __self_update_pid__+`=`+strconv.Itoa(os.Getpid())),
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 		})
 		if err != nil {
 			PrintExit("self update error: %v", err)
-		}
-		os.Exit(0)
-	} else if spid := os.Getenv(__self_update_pid__); spid != `` {
-		// 升级进程
-		if pid, _ := strconv.Atoi(spid); pid > 0 {
-			// 等待父进程结束,否则无法移动.
-			for {
-				if _, err := os.FindProcess(pid); err != nil {
-					break
-				}
-				time.Sleep(100 * time.Millisecond)
-			}
-			_ = os.Chmod(os.Args[0], os.ModePerm)
-			_ = os.Remove(os.Args[0])
-			if err := os.Rename(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args[0]); err != nil {
-				PrintExit("self update error: %v", err)
-			}
-			// 清理.protogen
-			filepath.Walk(ctx.HomeDir, func(path string, info fs.FileInfo, err error) error {
-				os.Chmod(path, os.ModePerm)
-				return nil
-			})
-			os.RemoveAll(ctx.HomeDir)
-		}
-	}
-
-	for _, p := range Plugins {
-		name := p.Name + p.Version
-		if p.Mode == GoGetBin {
-			name += ctx.GOEXE
-		}
-		// 非强制更新忽略已存在的插件
-		if force || !Exists(filepath.Join(ctx.HomeDir, name)) {
-			if p.Mode == HttpGetProtoc {
-				ctx.HttpGetProtoc(c, p.Module, p.Version)
-			} else {
-				ctx.GoGet(c, p.Module, p.Version, p.Mode)
-			}
 		}
 	}
 }

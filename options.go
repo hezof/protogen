@@ -52,7 +52,7 @@ func initCustomOptions(ops *Context) {
 func initSystemOptions(ops *Context) {
 	ops.HomeDir = home()
 	ops.TempDir = filepath.Join(ops.HomeDir, `tmp`)
-	ops.IncludeDir = filepath.Join(ops.HomeDir, `include`)
+	ops.IncludeDir = filepath.Join(ops.HomeDir, IncludeFullName())
 	ops.GoModFile = filepath.Join(ops.HomeDir, `go.mod`)
 	ops.GoSumFile = filepath.Join(ops.HomeDir, `go.sum`)
 
