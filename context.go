@@ -247,13 +247,9 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 				_ = os.Chmod(oldBin, os.ModePerm)
 				if err := os.Rename(newBin, oldBin); err != nil {
 					PrintWarn("self update error: %v", err)
+				} else {
+					PrintInfo("self update successfully")
 				}
-				// 清理.protogen
-				filepath.Walk(ctx.HomeDir, func(path string, info fs.FileInfo, err error) error {
-					os.Chmod(path, os.ModePerm)
-					return nil
-				})
-				os.RemoveAll(ctx.HomeDir)
 			}
 		}
 
