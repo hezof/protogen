@@ -243,7 +243,7 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 					time.Sleep(100 * time.Millisecond)
 				}
 				oldBin := Lookup(os.Args[0])
-				newBin := filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE)
+				newBin := filepath.Join(ctx.HomeDir, filepath.Base(MODULE)+`_`+VERSION[1:]+ctx.GOEXE)
 				_ = os.Chmod(oldBin, os.ModePerm)
 				if err := os.Rename(newBin, oldBin); err != nil {
 					PrintWarn("self update error: %v", err)
@@ -265,6 +265,8 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 		})
 		if err != nil {
 			PrintExit("self update error: %v", err)
+		} else {
+			PrintInfo("self update start, please wait...")
 		}
 	}
 	ctx.Close()
