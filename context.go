@@ -102,7 +102,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		if !Exists(newBin) {
 			PrintExit("go get %v failed", module)
 		}
-		oldBin := filepath.Join(ctx.HomeDir, name+version+ctx.GOEXE)
+		oldBin := filepath.Join(ctx.HomeDir, name+`_`+version[1:]+ctx.GOEXE)
 		_ = os.Chmod(oldBin, os.ModePerm)
 		_ = os.Remove(oldBin)
 		err := os.Rename(newBin, oldBin)
@@ -114,7 +114,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		if newSrc == "" {
 			PrintExit("go get %v failed", module)
 		}
-		oldSrc := filepath.Join(ctx.HomeDir, name+version)
+		oldSrc := filepath.Join(ctx.HomeDir, name+`_`+version[1:])
 		if Exists(oldSrc) {
 			filepath.Walk(oldSrc, func(path string, info fs.FileInfo, err error) error {
 				os.Chmod(path, fs.ModePerm)
@@ -242,10 +242,11 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 					}
 					time.Sleep(100 * time.Millisecond)
 				}
-				_ = os.Chmod(os.Args[0], os.ModePerm)
-				_ = os.Remove(os.Args[0])
-				if err := os.Rename(filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE), os.Args[0]); err != nil {
-					PrintExit("self update error: %v", err)
+				oldBin := Lookup(os.Args[0])
+				newBin := filepath.Join(ctx.HomeDir, `protogen`+ctx.GOEXE)
+				_ = os.Chmod(oldBin, os.ModePerm)
+				if err := os.Rename(newBin, oldBin); err != nil {
+					PrintWarn("self update error: %v", err)
 				}
 				// 清理.protogen
 				filepath.Walk(ctx.HomeDir, func(path string, info fs.FileInfo, err error) error {
@@ -258,7 +259,7 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 
 	} else {
 		ctx.GoGet(c, MODULE, c.VERSION, GoGetBin)
-		_, err := os.StartProcess(filepath.Join(ctx.HomeDir, filepath.Base(MODULE)+c.VERSION+ctx.GOEXE), os.Args, &os.ProcAttr{
+		_, err := os.StartProcess(filepath.Join(ctx.HomeDir, filepath.Base(MODULE)+`_`+c.VERSION[1:]+ctx.GOEXE), os.Args, &os.ProcAttr{
 			Env:   append(os.Environ(), __self_update_pid__+`=`+strconv.Itoa(os.Getpid())),
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 		})
@@ -266,6 +267,8 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 			PrintExit("self update error: %v", err)
 		}
 	}
+	ctx.Close()
+	os.Exit(0)
 }
 
 func (ctx *Context) Generate(protoPaths []string, protoFiles []string) {
