@@ -243,11 +243,13 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 					if _, err := os.FindProcess(pid); err != nil {
 						break
 					}
+					PrintInfo("find process..." + spid)
 					time.Sleep(100 * time.Millisecond)
 				}
 				oldBin := Lookup(os.Args[0])
 				newBin := filepath.Join(ctx.HomeDir, filepath.Base(MODULE)+`_`+VERSION[1:]+ctx.GOEXE)
 				_ = os.Chmod(oldBin, os.ModePerm)
+				_ = os.Remove(oldBin)
 				if err := os.Rename(newBin, oldBin); err != nil {
 					PrintWarn("self update error: %v", err)
 				} else {
