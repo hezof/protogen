@@ -258,7 +258,6 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 			})
 			os.RemoveAll(ctx.HomeDir)
 		}
-		os.Exit(0)
 	}
 
 	for _, p := range Plugins {
