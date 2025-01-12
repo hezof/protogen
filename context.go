@@ -258,8 +258,6 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 			} else {
 				PrintExit("self update error: invalid pid")
 			}
-		} else {
-			PrintExit("self update error: missing pid")
 		}
 
 	} else {
