@@ -8,7 +8,7 @@ import (
 )
 
 const MODULE = `github.com/hezof/protogen`
-const VERSION = `v0.5.9`
+const VERSION = `v0.5.10`
 
 func main() {
 
