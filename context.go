@@ -122,7 +122,10 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 			})
 			os.RemoveAll(oldSrc)
 		}
-		os.Rename(newSrc, oldSrc)
+		err := os.Rename(newSrc, oldSrc)
+		if err != nil {
+			PrintExit("go get %v error: %v", module, err)
+		}
 	}
 }
 
@@ -250,7 +253,11 @@ func (ctx *Context) UpdatePlugin(c *Config, force bool) {
 				} else {
 					PrintInfo("self update successfully")
 				}
+			} else {
+				PrintExit("self update error: invalid pid")
 			}
+		} else {
+			PrintExit("self update error: missing pid")
 		}
 
 	} else {
