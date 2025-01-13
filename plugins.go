@@ -1,5 +1,7 @@
 package main
 
+import "path/filepath"
+
 var Plugins = []*Plugin{
 	{
 		Mode:    HttpGetProtoc,
@@ -39,10 +41,10 @@ var Plugins = []*Plugin{
 	},
 }
 
-func IncludeFullName() string {
+func IncludeDir() string {
 	for _, p := range Plugins {
 		if p.Name == `include` {
-			return p.Name + p.Version
+			return filepath.Base(p.Module) + `_` + p.Version[1:]
 		}
 	}
 	return ``
