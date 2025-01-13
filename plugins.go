@@ -28,13 +28,13 @@ var Plugins = []*Plugin{
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go-protoapi",
-		Module:  "github.com/hezof/protogen/plugin/protoc-gen-go-protoapi",
+		Module:  "github.com/hezof/protoapi/cmd/protoc-gen-go-protoapi",
 		Version: "v0.5.0",
 	},
 	{
 		Mode:    GoGetBin,
 		Name:    "protoc-gen-go-openapi",
-		Module:  "github.com/hezof/protogen/plugin/protoc-gen-go-openapi",
+		Module:  "github.com/hezof/protoapi/cmd/protoc-gen-go-openapi",
 		Version: "v0.5.0",
 	},
 }
