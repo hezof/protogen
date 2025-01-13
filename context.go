@@ -93,7 +93,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 	)
 	cmd.Dir = ctx.HomeDir
 	if err := cmd.Run(); err != nil {
-		PrintExit("go get %v error: %v", module, err)
+		PrintExit("go get %v error, %v", module, err)
 	}
 
 	name := filepath.Base(module) // base包含@version部分
@@ -109,7 +109,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		_ = os.Remove(oldBin)
 		err := os.Rename(newBin, oldBin)
 		if err != nil {
-			PrintExit("go get %v error: %v", module, err)
+			PrintExit("go get %v error, %v", module, err)
 		}
 	case GoGetSrc:
 		newSrc := RealPath(ctx.TempDir, module)
@@ -130,7 +130,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		}
 		err := os.Rename(newSrc, oldSrc)
 		if err != nil {
-			PrintExit("go get %v error: %v", module, err)
+			PrintExit("go get %v error, %v", module, err)
 		}
 	}
 }
@@ -177,18 +177,18 @@ func (ctx *Context) HttpGetProtoc(config *Config, module, version string) {
 	furl := config.MAVEN_CENTRAL + `/com/google/protobuf/protoc/` + version[1:] + `/protoc-` + version[1:] + `-` + sysOS + `-` + sysARCH + `.exe`
 	rsp, err := http.Get(furl)
 	if err != nil {
-		PrintExit(`http get %v error: %v`, name, err)
+		PrintExit(`http get %v error, %v`, name, err)
 	}
 	defer rsp.Body.Close()
 
 	data, err := io.ReadAll(rsp.Body)
 	if err != nil {
-		PrintExit(`http get %v error: %v`, name, err)
+		PrintExit(`http get %v error, %v`, name, err)
 	}
 
 	err = os.WriteFile(filepath.Join(ctx.HomeDir, name+`_`+version[1:]+ctx.GOEXE), data, 0755)
 	if err != nil {
-		PrintExit(`http get %v error: %v`, name, err)
+		PrintExit(`http get %v error, %v`, name, err)
 	}
 }
 

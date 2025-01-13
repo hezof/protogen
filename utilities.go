@@ -9,16 +9,16 @@ import (
 )
 
 func PrintExit(format string, args ...any) {
-	fmt.Fprintln(os.Stdout, `protogen [E]`, fmt.Sprintf(format, args...))
+	fmt.Fprintln(os.Stderr, `pg:`, fmt.Sprintf(format, args...))
 	os.Exit(1)
 }
 
 func PrintInfo(format string, args ...any) {
-	fmt.Fprintln(os.Stdout, `protogen [I]`, fmt.Sprintf(format, args...))
+	fmt.Fprintln(os.Stdout, `pg:`, fmt.Sprintf(format, args...))
 }
 
 func PrintWarn(format string, args ...any) {
-	fmt.Fprintln(os.Stdout, `protogen [W]`, fmt.Sprintf(format, args...))
+	fmt.Fprintln(os.Stdout, `pg:`, fmt.Sprintf(format, args...))
 }
 
 func Env(key string, def string) string {
