@@ -103,6 +103,7 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		if !Exists(newBin) {
 			PrintExit("go get %v failed", module)
 		}
+		_ = os.Chmod(newBin, 0755)
 		oldBin := filepath.Join(ctx.HomeDir, name+`_`+version[1:]+ctx.GOEXE)
 		_ = os.Chmod(oldBin, os.ModePerm)
 		_ = os.Remove(oldBin)
@@ -115,6 +116,10 @@ func (ctx *Context) GoGet(config *Config, module, version string, mode Mode) {
 		if newSrc == "" {
 			PrintExit("go get %v failed", module)
 		}
+		filepath.Walk(newSrc, func(path string, info fs.FileInfo, err error) error {
+			_ = os.Chmod(path, 0644)
+			return nil
+		})
 		oldSrc := filepath.Join(ctx.HomeDir, name+`_`+version[1:])
 		if Exists(oldSrc) {
 			filepath.Walk(oldSrc, func(path string, info fs.FileInfo, err error) error {
